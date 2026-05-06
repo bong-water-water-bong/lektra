@@ -22,7 +22,7 @@ struct Config
         }
     };
 
-    QHash<QString, QString> keybinds;
+    QHash<QString, QStringList> keybinds;
     std::vector<MouseBinding> mousebinds{
 #ifdef WITH_SYNCTEX
         {Qt::LeftButton, Qt::ShiftModifier,

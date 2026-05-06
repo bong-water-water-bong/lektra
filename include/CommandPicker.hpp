@@ -11,13 +11,13 @@ class CommandPicker : public Picker
 {
     Q_OBJECT
 public:
-    using ShortcutMap = QHash<QString, QString>;
+    using ShortcutMap = QHash<QString, QStringList>;
     explicit CommandPicker(const Config::CommandPalette &config,
                            const std::vector<Command> &commands,
                            const ShortcutMap &shortcuts,
                            QWidget *parent) noexcept;
 
-    void registerCommand(const QString &name, const QString &shortcut,
+    void registerCommand(const QString &name, const QStringList &shortcuts,
                          std::function<void()> action);
 
     // Picker interface

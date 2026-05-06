@@ -180,82 +180,89 @@ Lektra::initMenubar() noexcept
     QMenu *fileMenu = m_menuBar->addMenu(tr("&File"));
 
     fileMenu->addAction(
-        tr("Open File\t%1").arg(m_config.keybinds["file_open_tab"]), this,
-        [&]() { OpenFileInNewTab(); });
+        tr("Open File\t%1").arg(m_config.keybinds["file_open_tab"].join(", ")),
+        this, [&]() { OpenFileInNewTab(); });
 
-    fileMenu->addAction(tr("Open File In VSplit\t%1")
-                            .arg(m_config.keybinds["file_open_vsplit"]),
-                        this, [&]() { OpenFileVSplit(); });
+    fileMenu->addAction(
+        tr("Open File In VSplit\t%1")
+            .arg(m_config.keybinds["file_open_vsplit"].join(", ")),
+        this, [&]() { OpenFileVSplit(); });
 
-    fileMenu->addAction(tr("Open File In HSplit\t%1")
-                            .arg(m_config.keybinds["file_open_hsplit"]),
-                        this, [&]() { OpenFileHSplit(); });
+    fileMenu->addAction(
+        tr("Open File In HSplit\t%1")
+            .arg(m_config.keybinds["file_open_hsplit"].join(", ")),
+        this, [&]() { OpenFileHSplit(); });
 
     m_recentFilesMenu = fileMenu->addMenu(tr("Recent Files"));
 
     m_actionFileProperties = fileMenu->addAction(
-        tr("File Properties\t%1").arg(m_config.keybinds["file_properties"]),
+        tr("File Properties\t%1")
+            .arg(m_config.keybinds["file_properties"].join(", ")),
         this, &Lektra::FileProperties);
 
     m_actionOpenContainingFolder = fileMenu->addAction(
         tr("Open Containing Folder\t%1")
-            .arg(m_config.keybinds["open_containing_folder"]),
+            .arg(m_config.keybinds["open_containing_folder"].join(", ")),
         this, &Lektra::OpenContainingFolder);
     m_actionOpenContainingFolder->setEnabled(false);
 
     m_actionSaveFile = fileMenu->addAction(
-        tr("Save File\t%1").arg(m_config.keybinds["file_save"]), this,
-        [this]() { Lektra::SaveFile(); });
+        tr("Save File\t%1").arg(m_config.keybinds["file_save"].join(", ")),
+        this, [this]() { Lektra::SaveFile(); });
 
     m_actionSaveAsFile = fileMenu->addAction(
-        tr("Save As File\t%1").arg(m_config.keybinds["file_save_as"]), this,
-        [this]() { Lektra::SaveAsFile(); });
+        tr("Save As File\t%1")
+            .arg(m_config.keybinds["file_save_as"].join(", ")),
+        this, [this]() { Lektra::SaveAsFile(); });
 
     QMenu *sessionMenu = fileMenu->addMenu(tr("Session"));
 
     m_actionSessionSave = sessionMenu->addAction(
-        tr("Save\t%1").arg(m_config.keybinds["session_save"]), this,
+        tr("Save\t%1").arg(m_config.keybinds["session_save"].join(", ")), this,
         [&]() { SaveSession(); });
     m_actionSessionSaveAs = sessionMenu->addAction(
-        tr("Save As\t%1").arg(m_config.keybinds["session_save_as"]), this,
-        [&]() { SaveAsSession(); });
+        tr("Save As\t%1").arg(m_config.keybinds["session_save_as"].join(", ")),
+        this, [&]() { SaveAsSession(); });
     m_actionSessionLoad = sessionMenu->addAction(
-        tr("Load\t%1").arg(m_config.keybinds["session_load"]), this,
+        tr("Load\t%1").arg(m_config.keybinds["session_load"].join(", ")), this,
         [&]() { LoadSession(); });
 
     m_actionSessionSaveAs->setEnabled(false);
 
     m_actionCloseFile = fileMenu->addAction(
-        tr("Close File\t%1").arg(m_config.keybinds["file_close"]), this,
-        [this]() { Tab_close(); });
+        tr("Close File\t%1").arg(m_config.keybinds["file_close"].join(", ")),
+        this, [this]() { Tab_close(); });
 
     fileMenu->addSeparator();
     fileMenu->addAction(tr("Quit"), this, &QMainWindow::close);
 
     QMenu *editMenu = m_menuBar->addMenu(tr("&Edit"));
     m_actionUndo    = editMenu->addAction(
-        tr("Undo\t%1").arg(m_config.keybinds["undo"]), this, &Lektra::Undo);
+        tr("Undo\t%1").arg(m_config.keybinds["undo"].join(", ")), this,
+        &Lektra::Undo);
     m_actionRedo = editMenu->addAction(
-        tr("Redo\t%1").arg(m_config.keybinds["redo"]), this, &Lektra::Redo);
+        tr("Redo\t%1").arg(m_config.keybinds["redo"].join(", ")), this,
+        &Lektra::Redo);
     m_actionUndo->setEnabled(false);
     m_actionRedo->setEnabled(false);
     editMenu->addAction(
-        tr("Last Pages\t%1").arg(m_config.keybinds["edit_last_pages"]), this,
-        &Lektra::editLastPages);
+        tr("Last Pages\t%1")
+            .arg(m_config.keybinds["edit_last_pages"].join(", ")),
+        this, &Lektra::editLastPages);
 
     // --- View Menu ---
     m_viewMenu         = m_menuBar->addMenu(tr("&View"));
     m_actionFullscreen = m_viewMenu->addAction(
-        tr("Fullscreen\t%1").arg(m_config.keybinds["fullscreen"]), this,
-        &Lektra::ToggleFullscreen);
+        tr("Fullscreen\t%1").arg(m_config.keybinds["fullscreen"].join(", ")),
+        this, &Lektra::ToggleFullscreen);
     m_actionFullscreen->setCheckable(true);
     m_actionFullscreen->setChecked(m_config.window.fullscreen);
 
     m_actionZoomIn = m_viewMenu->addAction(
-        tr("Zoom In\t%1").arg(m_config.keybinds["zoom_in"]), this,
+        tr("Zoom In\t%1").arg(m_config.keybinds["zoom_in"].join(", ")), this,
         &Lektra::ZoomIn);
     m_actionZoomOut = m_viewMenu->addAction(
-        tr("Zoom Out\t%1").arg(m_config.keybinds["zoom_out"]), this,
+        tr("Zoom Out\t%1").arg(m_config.keybinds["zoom_out"].join(", ")), this,
         &Lektra::ZoomOut);
 
     m_viewMenu->addSeparator();
@@ -263,22 +270,22 @@ Lektra::initMenubar() noexcept
     m_fitMenu = m_viewMenu->addMenu(tr("Fit"));
 
     m_actionFitWidth = m_fitMenu->addAction(
-        tr("Width\t%1").arg(m_config.keybinds["fit_width"]), this,
+        tr("Width\t%1").arg(m_config.keybinds["fit_width"].join(", ")), this,
         &Lektra::Fit_width);
 
     m_actionFitHeight = m_fitMenu->addAction(
-        tr("Height\t%1").arg(m_config.keybinds["fit_height"]), this,
+        tr("Height\t%1").arg(m_config.keybinds["fit_height"].join(", ")), this,
         &Lektra::Fit_height);
 
     m_actionFitWindow = m_fitMenu->addAction(
-        tr("Page\t%1").arg(m_config.keybinds["fit_page"]), this,
+        tr("Page\t%1").arg(m_config.keybinds["fit_page"].join(", ")), this,
         &Lektra::Fit_page);
 
     m_fitMenu->addSeparator();
 
     // Auto Resize toggle (independent)
     m_actionAutoresize = m_viewMenu->addAction(
-        tr("Auto Fit\t%1").arg(m_config.keybinds["fit_auto"]), this,
+        tr("Auto Fit\t%1").arg(m_config.keybinds["fit_auto"].join(", ")), this,
         &Lektra::ToggleAutoResize);
     m_actionAutoresize->setCheckable(true);
     m_actionAutoresize->setChecked(
@@ -292,20 +299,22 @@ Lektra::initMenubar() noexcept
     layoutActionGroup->setExclusive(true);
 
     m_actionLayoutSingle = m_layoutMenu->addAction(
-        tr("Single Page\t%1").arg(m_config.keybinds["layout_single"]), this,
-        [&]() { SetLayoutMode(DocumentView::LayoutMode::SINGLE); });
+        tr("Single Page\t%1")
+            .arg(m_config.keybinds["layout_single"].join(", ")),
+        this, [&]() { SetLayoutMode(DocumentView::LayoutMode::SINGLE); });
 
     m_actionLayoutLeftToRight = m_layoutMenu->addAction(
         tr("Left to Right Page\t%1")
-            .arg(m_config.keybinds["layout_horizontal"]),
+            .arg(m_config.keybinds["layout_horizontal"].join(", ")),
         this, [&]() { SetLayoutMode(DocumentView::LayoutMode::HORIZONTAL); });
 
     m_actionLayoutTopToBottom = m_layoutMenu->addAction(
-        tr("Top to Bottom Page\t%1").arg(m_config.keybinds["layout_vertical"]),
+        tr("Top to Bottom Page\t%1")
+            .arg(m_config.keybinds["layout_vertical"].join(", ")),
         this, [&]() { SetLayoutMode(DocumentView::LayoutMode::VERTICAL); });
 
     m_actionLayoutBook = m_layoutMenu->addAction(
-        tr("Book\t%1").arg(m_config.keybinds["layout_book"]), this,
+        tr("Book\t%1").arg(m_config.keybinds["layout_book"].join(", ")), this,
         [&]() { SetLayoutMode(DocumentView::LayoutMode::BOOK); });
 
     layoutActionGroup->addAction(m_actionLayoutSingle);
@@ -333,43 +342,46 @@ Lektra::initMenubar() noexcept
     m_toggleMenu = m_viewMenu->addMenu(tr("Show/Hide"));
 
     m_actionCommandPicker = m_toggleMenu->addAction(
-        tr("Command Picker\t%1").arg(m_config.keybinds["command_picker"]), this,
-        &Lektra::Show_command_picker);
+        tr("Command Picker\t%1")
+            .arg(m_config.keybinds["command_picker"].join(", ")),
+        this, &Lektra::Show_command_picker);
 
     m_actionBookmarkPicker = m_toggleMenu->addAction(
-        tr("Bookmark Picker\t%1").arg(m_config.keybinds["bookmark_picker"]),
+        tr("Bookmark Picker\t%1")
+            .arg(m_config.keybinds["bookmark_picker"].join(", ")),
         this, &Lektra::Show_bookmark_picker);
 
     m_actionToggleOutline = m_toggleMenu->addAction(
-        tr("Outline\t%1").arg(m_config.keybinds["picker_outline"]), this,
-        &Lektra::ShowOutline);
+        tr("Outline\t%1").arg(m_config.keybinds["picker_outline"].join(", ")),
+        this, &Lektra::ShowOutline);
 
     m_actionToggleHighlightAnnotSearch = m_toggleMenu->addAction(
         tr("Highlight Annotation Search\t%1")
-            .arg(m_config.keybinds["picker_highlight_search"]),
+            .arg(m_config.keybinds["picker_highlight_search"].join(", ")),
         this, &Lektra::Show_highlight_search);
 
     m_actionToggleMenubar = m_toggleMenu->addAction(
-        tr("Menubar\t%1").arg(m_config.keybinds["menubar"]), this,
+        tr("Menubar\t%1").arg(m_config.keybinds["menubar"].join(", ")), this,
         &Lektra::ToggleMenubar);
     m_actionToggleMenubar->setCheckable(true);
     m_actionToggleMenubar->setChecked(!m_menuBar->isHidden());
 
-    m_actionToggleTabBar
-        = m_toggleMenu->addAction(tr("Tabs\t%1").arg(m_config.keybinds["tabs"]),
-                                  this, &Lektra::ToggleTabBar);
+    m_actionToggleTabBar = m_toggleMenu->addAction(
+        tr("Tabs\t%1").arg(m_config.keybinds["tabs"].join(", ")), this,
+        &Lektra::ToggleTabBar);
     m_actionToggleTabBar->setCheckable(true);
     m_actionToggleTabBar->setChecked(!m_tab_widget->tabBar()->isHidden());
 
     m_actionToggleStatusbar = m_toggleMenu->addAction(
-        tr("Statusbar\t%1").arg(m_config.keybinds["statusbar"]), this,
-        &Lektra::ToggleStatusbar);
+        tr("Statusbar\t%1").arg(m_config.keybinds["statusbar"].join(", ")),
+        this, &Lektra::ToggleStatusbar);
     m_actionToggleStatusbar->setCheckable(true);
     m_actionToggleStatusbar->setChecked(!m_statusbar->isHidden());
 
     m_actionInvertColor = m_viewMenu->addAction(
-        tr("Invert Color\t%1").arg(m_config.keybinds["invert_color"]), this,
-        &Lektra::InvertColor);
+        tr("Invert Color\t%1")
+            .arg(m_config.keybinds["invert_color"].join(", ")),
+        this, &Lektra::InvertColor);
     m_actionInvertColor->setCheckable(true);
     m_actionInvertColor->setChecked(m_config.behavior.invert_mode);
 
@@ -384,50 +396,56 @@ Lektra::initMenubar() noexcept
 
     m_actionRegionSelect = m_modeMenu->addAction(
         tr("Region Selection\t%1")
-            .arg(m_config.keybinds["selection_mode_region"]),
+            .arg(m_config.keybinds["selection_mode_region"].join(", ")),
         this, &Lektra::ToggleRegionSelect);
     m_actionRegionSelect->setCheckable(true);
     modeActionGroup->addAction(m_actionRegionSelect);
 
     m_actionTextSelect = m_modeMenu->addAction(
-        tr("Text Selection\t%1").arg(m_config.keybinds["selection_mode_text"]),
+        tr("Text Selection\t%1")
+            .arg(m_config.keybinds["selection_mode_text"].join(", ")),
         this, &Lektra::ToggleTextSelection);
     m_actionTextSelect->setCheckable(true);
     modeActionGroup->addAction(m_actionTextSelect);
 
     m_actionTextHighlight = m_modeMenu->addAction(
-        tr("Text Highlight\t%1").arg(m_config.keybinds["annot_highlight_mode"]),
+        tr("Text Highlight\t%1")
+            .arg(m_config.keybinds["annot_highlight_mode"].join(", ")),
         this, &Lektra::ToggleTextHighlight);
     m_actionTextHighlight->setCheckable(true);
     modeActionGroup->addAction(m_actionTextHighlight);
 
     m_actionAnnotRect = m_modeMenu->addAction(
-        tr("Annotate Rectangle\t%1").arg(m_config.keybinds["annot_rect_mode"]),
+        tr("Annotate Rectangle\t%1")
+            .arg(m_config.keybinds["annot_rect_mode"].join(", ")),
         this, &Lektra::ToggleAnnotRect);
     m_actionAnnotRect->setCheckable(true);
     modeActionGroup->addAction(m_actionAnnotRect);
 
     m_actionAnnotEdit = m_modeMenu->addAction(
-        tr("Edit Annotations\t%1").arg(m_config.keybinds["annot_edit_mode"]),
+        tr("Edit Annotations\t%1")
+            .arg(m_config.keybinds["annot_edit_mode"].join(", ")),
         this, &Lektra::ToggleAnnotSelect);
     m_actionAnnotEdit->setCheckable(true);
     modeActionGroup->addAction(m_actionAnnotEdit);
 
     m_actionAnnotPopup = m_modeMenu->addAction(
-        tr("Annotate Popup\t%1").arg(m_config.keybinds["annot_popup_mode"]),
+        tr("Annotate Popup\t%1")
+            .arg(m_config.keybinds["annot_popup_mode"].join(", ")),
         this, &Lektra::ToggleAnnotPopup);
     m_actionAnnotPopup->setCheckable(true);
     modeActionGroup->addAction(m_actionAnnotPopup);
 
     // TODO: Store visual line mode state in config
     m_actionVisualLineMode = m_modeMenu->addAction(
-        tr("Visual Line Mode\t%1").arg(m_config.keybinds["visual_line_mode"]),
+        tr("Visual Line Mode\t%1")
+            .arg(m_config.keybinds["visual_line_mode"].join(", ")),
         this, &Lektra::ToggleVisualLineMode);
     m_actionVisualLineMode->setCheckable(true);
     modeActionGroup->addAction(m_actionVisualLineMode);
 
     m_actionNoneMode = m_modeMenu->addAction(
-        tr("None\t%1").arg(m_config.keybinds["none_mode"]), this,
+        tr("None\t%1").arg(m_config.keybinds["none_mode"].join(", ")), this,
         &Lektra::ToggleNoneMode);
     m_actionNoneMode->setCheckable(true);
     modeActionGroup->addAction(m_actionNoneMode);
@@ -466,72 +484,77 @@ Lektra::initMenubar() noexcept
     }
 
     m_actionEncrypt = toolsMenu->addAction(
-        tr("Encrypt Document\t%1").arg(m_config.keybinds["file_encrypt"]), this,
-        &Lektra::EncryptDocument);
+        tr("Encrypt Document\t%1")
+            .arg(m_config.keybinds["file_encrypt"].join(", ")),
+        this, &Lektra::EncryptDocument);
     m_actionEncrypt->setEnabled(false);
 
     m_actionDecrypt = toolsMenu->addAction(
-        tr("Decrypt Document\t%1").arg(m_config.keybinds["file_decrypt"]), this,
-        &Lektra::DecryptDocument);
+        tr("Decrypt Document\t%1")
+            .arg(m_config.keybinds["file_decrypt"].join(", ")),
+        this, &Lektra::DecryptDocument);
     m_actionDecrypt->setEnabled(false);
 
     // --- Navigation Menu ---
     m_navMenu = m_menuBar->addMenu(tr("&Navigation"));
 
     m_navMenu->addAction(
-        tr("StartPage\t%1").arg(m_config.keybinds["show_startup_widget"]), this,
-        &Lektra::showStartupWidget);
+        tr("StartPage\t%1")
+            .arg(m_config.keybinds["show_startup_widget"].join(", ")),
+        this, &Lektra::showStartupWidget);
 
     m_actionGotoPage = m_navMenu->addAction(
-        tr("Goto Page\t%1").arg(m_config.keybinds["page_goto"]), this,
-        [this]() { Lektra::Goto_page(); });
+        tr("Goto Page\t%1").arg(m_config.keybinds["page_goto"].join(", ")),
+        this, [this]() { Lektra::Goto_page(); });
 
     m_actionFirstPage = m_navMenu->addAction(
-        tr("First Page\t%1").arg(m_config.keybinds["page_first"]), this,
-        &Lektra::FirstPage);
+        tr("First Page\t%1").arg(m_config.keybinds["page_first"].join(", ")),
+        this, &Lektra::FirstPage);
 
     m_actionPrevPage = m_navMenu->addAction(
-        tr("Previous Page\t%1").arg(m_config.keybinds["page_prev"]), this,
-        &Lektra::PrevPage);
+        tr("Previous Page\t%1").arg(m_config.keybinds["page_prev"].join(", ")),
+        this, &Lektra::PrevPage);
 
     m_actionNextPage = m_navMenu->addAction(
-        tr("Next Page\t%1").arg(m_config.keybinds["page_next"]), this,
-        &Lektra::NextPage);
+        tr("Next Page\t%1").arg(m_config.keybinds["page_next"].join(", ")),
+        this, &Lektra::NextPage);
     m_actionLastPage = m_navMenu->addAction(
-        tr("Last Page\t%1").arg(m_config.keybinds["page_last"]), this,
-        &Lektra::LastPage);
+        tr("Last Page\t%1").arg(m_config.keybinds["page_last"].join(", ")),
+        this, &Lektra::LastPage);
 
     m_actionPrevLocation = m_navMenu->addAction(
-        tr("Previous Location\t%1").arg(m_config.keybinds["location_prev"]),
+        tr("Previous Location\t%1")
+            .arg(m_config.keybinds["location_prev"].join(", ")),
         this, &Lektra::GoBackHistory);
     m_actionNextLocation = m_navMenu->addAction(
-        tr("Next Location\t%1").arg(m_config.keybinds["location_next"]), this,
-        &Lektra::GoForwardHistory);
+        tr("Next Location\t%1")
+            .arg(m_config.keybinds["location_next"].join(", ")),
+        this, &Lektra::GoForwardHistory);
 
     QMenu *markMenu = m_navMenu->addMenu(tr("Marks"));
 
     m_actionSetMark = markMenu->addAction(
-        tr("Set Mark\t%1").arg(m_config.keybinds["set_mark"]), this,
+        tr("Set Mark\t%1").arg(m_config.keybinds["set_mark"].join(", ")), this,
         [this]() { Lektra::SetMark(); });
 
     m_actionGotoMark = markMenu->addAction(
-        tr("Goto Mark\t%1").arg(m_config.keybinds["goto_mark"]), this,
-        [this]() { Lektra::GotoMark(); });
+        tr("Goto Mark\t%1").arg(m_config.keybinds["goto_mark"].join(", ")),
+        this, [this]() { Lektra::GotoMark(); });
 
     m_actionDeleteMark = markMenu->addAction(
-        tr("Delete Mark\t%1").arg(m_config.keybinds["delete_mark"]), this,
-        [this]() { Lektra::DeleteMark(); });
+        tr("Delete Mark\t%1").arg(m_config.keybinds["delete_mark"].join(", ")),
+        this, [this]() { Lektra::DeleteMark(); });
 
     /* Help Menu */
     QMenu *helpMenu = m_menuBar->addMenu(tr("&Help"));
     m_actionAbout   = helpMenu->addAction(
-        tr("About\t%1").arg(m_config.keybinds["show_about"]), this,
+        tr("About\t%1").arg(m_config.keybinds["show_about"].join(", ")), this,
         &Lektra::ShowAbout);
 
-    m_actionShowTutorialFile
-        = helpMenu->addAction(tr("Open Tutorial File\t%1")
-                                  .arg(m_config.keybinds["show_tutorial_file"]),
-                              this, &Lektra::showTutorialFile);
+    m_actionShowTutorialFile = helpMenu->addAction(
+        tr("Open Tutorial File\t%1")
+            .arg(m_config.keybinds["show_tutorial_file"].join(", ")),
+        this, &Lektra::showTutorialFile);
 }
 
 // Initialize the recent files store
@@ -1315,19 +1338,23 @@ Lektra::warnShortcutConflicts() noexcept
     for (auto it = m_config.keybinds.constBegin();
          it != m_config.keybinds.constEnd(); ++it)
     {
-        const QString key = it.value().trimmed();
-        if (key.isEmpty())
-            continue;
+        const QStringList keys = it.value();
+        for (const QString &key : keys)
+        {
+            const QString trimmed = key.trimmed();
+            if (trimmed.isEmpty())
+                continue;
 
-        const QKeySequence seq(key);
-        if (seq.isEmpty())
-            continue;
+            const QKeySequence seq(trimmed);
+            if (seq.isEmpty())
+                continue;
 
-        const QString normalized = seq.toString(QKeySequence::PortableText);
-        if (normalized.isEmpty())
-            continue;
+            const QString normalized = seq.toString(QKeySequence::PortableText);
+            if (normalized.isEmpty())
+                continue;
 
-        shortcutsByKey[normalized].append(it.key());
+            shortcutsByKey[normalized].append(it.key());
+        }
     }
 
     QStringList conflicts;
@@ -1580,6 +1607,8 @@ Lektra::setupKeybinding(const QString &action, const QStringList &keys) noexcept
     for (QShortcut *s : existing)
         delete s;
 
+    m_config.keybinds.remove(action);
+
     for (const QString &key : keys)
     {
         if (key.isEmpty())
@@ -1604,7 +1633,9 @@ Lektra::setupKeybinding(const QString &action, const QStringList &keys) noexcept
 
             const QString otherAction = s->objectName();
             delete s;
-            if (m_config.keybinds.value(otherAction) == key)
+            auto &otherKeys = m_config.keybinds[otherAction];
+            otherKeys.removeAll(key);
+            if (otherKeys.isEmpty())
                 m_config.keybinds.remove(otherAction);
         }
 
@@ -1615,7 +1646,7 @@ Lektra::setupKeybinding(const QString &action, const QStringList &keys) noexcept
 #ifndef NDEBUG
         qDebug() << "Keybinding set:" << action << "->" << key;
 #endif
-        m_config.keybinds[action] = key;
+        m_config.keybinds[action].append(key);
     }
 }
 
@@ -6628,3 +6659,20 @@ Lektra::CloseFile(DocumentView::Id doc_id) noexcept
             view->CloseFile();
     }
 }
+
+QStringList
+Lektra::getKeybindings(const QString &cmdname) const noexcept
+{
+    for (const auto &cmd : m_command_manager->const_commands())
+    {
+        if (cmd.name == cmdname)
+            return m_config.keybinds[cmdname];
+    }
+
+    return {};
+}
+
+// QStringList
+// Lektra::getMousebindings(const QString &action) const noexcept
+// {
+// }

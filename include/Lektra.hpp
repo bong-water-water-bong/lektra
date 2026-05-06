@@ -211,6 +211,8 @@ public:
     void setupMousebinding(const QString &action,
                            const QString &trigger) noexcept;
     void unsetMousebinding(const QString &action) noexcept;
+    QStringList getKeybindings(const QString &cmdname) const noexcept;
+    // QStringList getMousebindings(const QString &action) const noexcept;
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -472,6 +474,9 @@ private:
 
     // lektra.mousemap
     void initLuaMousemaps() noexcept;
+
+    // lektra.utils
+    void initLuaUtils() noexcept;
 
     bool removeLuaEventCallback(DispatchType type, int callbackRef) noexcept;
     void dispatchLuaEvent(DispatchType type) noexcept;

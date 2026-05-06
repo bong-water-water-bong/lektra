@@ -41,7 +41,7 @@ CommandPicker::collectItems()
         if (m_config.description)
             cols.append(cmd.description);
         if (m_config.show_shortcuts)
-            cols.append(m_shortcuts.value(cmd.name));
+            cols.append(m_shortcuts.value(cmd.name).join(", "));
         items.push_back(
             {.columns = cols, .data = static_cast<quint64>(i), .children = {}});
     }
