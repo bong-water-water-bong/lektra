@@ -30,4 +30,7 @@ lektra.cmd.execute = function(name, args) end
 ---@return table CommandEntry[] table of all registered commands
 lektra.cmd.list = function() end
 
+--- Creates an alias for a command.
+---@param name string The name of the alias to create.
+---@param target string The name of the command that the alias should point to.
 lektra.cmd.alias = function(name, target) end
