@@ -16,15 +16,15 @@ class TabWidget : public QWidget
     Q_OBJECT
 
 public:
-    using TabId = uint32_t;
+    using TabId = int;
     TabWidget(QWidget *parent = nullptr);
     TabBar *tabBar() const noexcept;
     int addTab(QWidget *page, const QString &title) noexcept;
     int insertTab(const int index, QWidget *page,
                   const QString &title) noexcept;
-    inline uint32_t id() const noexcept
+    inline int id(int index) const noexcept
     {
-        return m_id;
+        return m_tab_bar->tabData(index).toUInt();
     }
 
     inline int count() const noexcept

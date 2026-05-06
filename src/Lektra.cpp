@@ -167,6 +167,7 @@ Lektra::construct() noexcept
     this->show();
     resize(m_config.window.initial_size[0], m_config.window.initial_size[1]);
     installEventFilter(this);
+
 #ifdef WITH_LUA
     dispatchLuaEvent(DispatchType::OnAppReady);
 #endif
@@ -6676,3 +6677,23 @@ Lektra::getKeybindings(const QString &cmdname) const noexcept
 // Lektra::getMousebindings(const QString &action) const noexcept
 // {
 // }
+//
+#ifdef WITH_LUA
+void
+Lektra::loadLuaConfig() noexcept
+{
+    const QString init_file = m_config_dir.filePath("init.lua");
+    if (QFile::exists(init_file))
+    {
+        if (luaL_dofile(m_L, init_file.toStdString().c_str()) != LUA_OK)
+        {
+            qWarning() << "Failed to execute init.lua:"
+                       << lua_tostring(m_L, -1);
+            QMessageBox::critical(nullptr, "Lua Error",
+                                  "Failed to execute init.lua:\n"
+                                      + QString(lua_tostring(m_L, -1)));
+            lua_pop(m_L, 1);
+        }
+    }
+}
+#endif

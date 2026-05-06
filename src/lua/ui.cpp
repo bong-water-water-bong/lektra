@@ -1,6 +1,7 @@
 #include "Lektra.hpp"
 #include "lua/LuaPicker.hpp"
 
+#include <QFileDialog>
 #include <QMessageBox>
 
 namespace
@@ -305,6 +306,73 @@ Lektra::initLuaUI() noexcept
         return lua_ui_picker(L, lektra);
     }, 1);
     lua_setfield(m_L, -2, "picker");
+
+    // lektra.ui.file_dialog(mode, options)
+    lua_pushlightuserdata(m_L, this);
+    lua_pushcclosure(m_L, [](lua_State *L) -> int
+    {
+        const char *mode    = "open";
+        const char *def_dir = nullptr;
+        const char *filters = nullptr;
+        QString title       = nullptr;
+
+        if (lua_istable(L, 1))
+        {
+            lua_getfield(L, 1, "mode");
+            if (lua_isstring(L, -1))
+                mode = lua_tostring(L, -1);
+            lua_pop(L, 1);
+        }
+        else
+        {
+            mode = luaL_optstring(L, 1, "open");
+        }
+
+        if (lua_istable(L, 1))
+        {
+            lua_getfield(L, 1, "default_path");
+            if (lua_isstring(L, -1))
+                def_dir = lua_tostring(L, -1);
+            lua_pop(L, 1);
+
+            lua_getfield(L, 1, "filters");
+            if (lua_isstring(L, -1))
+                filters = lua_tostring(L, -1);
+            lua_pop(L, 1);
+        }
+
+        auto *lektra
+            = static_cast<Lektra *>(lua_touserdata(L, lua_upvalueindex(1)));
+
+        QString selected_file;
+        if (strcmp(mode, "open") == 0)
+        {
+            title         = tr("Open File");
+            selected_file = QFileDialog::getOpenFileName(
+                lektra, title, def_dir ? QString::fromUtf8(def_dir) : QString(),
+                filters ? QString::fromUtf8(filters) : QString());
+        }
+        else if (strcmp(mode, "save") == 0)
+        {
+            title         = tr("Save File");
+            selected_file = QFileDialog::getSaveFileName(
+                lektra, title, def_dir ? QString::fromUtf8(def_dir) : QString(),
+                filters ? QString::fromUtf8(filters) : QString());
+        }
+        else
+        {
+            return luaL_error(L, "Invalid file dialog mode: %s", mode);
+        }
+
+        if (!selected_file.isEmpty())
+        {
+            lua_pushstring(L, selected_file.toUtf8().constData());
+            return 1;
+        }
+
+        return 0;
+    }, 1);
+    lua_setfield(m_L, -2, "file_dialog");
 
     lua_setfield(m_L, -2, "ui");
 }

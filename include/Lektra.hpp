@@ -446,6 +446,8 @@ private:
     std::unique_ptr<CommandManager> m_command_manager;
 
 #ifdef WITH_LUA
+    void loadLuaConfig() noexcept;
+
     void initLua() noexcept;
 
     // lektra.opt

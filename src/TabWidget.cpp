@@ -1,8 +1,10 @@
 #include "TabWidget.hpp"
 
+#include "utils.hpp"
+
 #include <QVBoxLayout>
 
-static TabWidget::TabId nextId{0};
+static TabWidget::TabId nextId = 0;
 
 static TabWidget::TabId
 g_newId() noexcept
@@ -10,7 +12,7 @@ g_newId() noexcept
     return nextId++;
 }
 
-TabWidget::TabWidget(QWidget *parent) : QWidget(parent), m_id(g_newId())
+TabWidget::TabWidget(QWidget *parent) : QWidget(parent)
 {
     m_tab_bar        = new TabBar(this);
     m_stacked_widget = new QStackedWidget(this);
@@ -134,8 +136,11 @@ TabWidget::tabBar() const noexcept
 int
 TabWidget::addTab(QWidget *page, const QString &title) noexcept
 {
+    int id = g_newId();
     m_stacked_widget->addWidget(page);
     const int tabIndex = m_tab_bar->addTab(title);
+    PPRINT("Added tab with id ", id, " at index", tabIndex);
+    m_tab_bar->setTabData(tabIndex, id);
     m_tab_bar->set_split_count(tabIndex, 1);
     emit tabAdded(tabIndex);
     return tabIndex;
@@ -145,8 +150,10 @@ int
 TabWidget::insertTab(const int index, QWidget *page,
                      const QString &title) noexcept
 {
+    int id = g_newId();
     m_stacked_widget->insertWidget(index, page);
     const int tabIndex = m_tab_bar->insertTab(index, title);
+    m_tab_bar->setTabData(tabIndex, id);
     m_tab_bar->set_split_count(tabIndex, 1);
     emit tabAdded(tabIndex);
     return tabIndex;

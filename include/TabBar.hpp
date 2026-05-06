@@ -12,6 +12,7 @@
 #include <QStyleOptionTab>
 #include <QTabBar>
 #include <QVariant>
+#include <QVector>
 
 class TabBar : public QTabBar
 {
@@ -82,8 +83,12 @@ protected:
     void dragMoveEvent(QDragMoveEvent *event) override;
     void dropEvent(QDropEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
+    void tabInserted(int index) override;
+    void tabRemoved(int index) override;
+    void tabMoved(int from, int to);
 
 private:
     QPoint m_drag_start_pos;
     int m_drag_tab_index = -1;
+    QVector<int> m_split_counts;
 };

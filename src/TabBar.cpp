@@ -19,10 +19,12 @@ TabBar::set_split_count(int index, int count) noexcept
         return;
 
     const int clampedCount = qMax(1, count);
-    if (tabData(index).toInt() == clampedCount)
+    if (m_split_counts.value(index, 1) == clampedCount)
         return;
 
-    setTabData(index, clampedCount);
+    if (m_split_counts.size() <= index)
+        m_split_counts.resize(index + 1);
+    m_split_counts[index] = clampedCount;
     update(tabRect(index));
 }
 
@@ -32,8 +34,38 @@ TabBar::splitCount(int index) const noexcept
     if (index < 0 || index >= this->count())
         return 1;
 
-    const QVariant data = tabData(index);
-    return data.isValid() ? data.toInt() : 1;
+    return m_split_counts.value(index, 1);
+}
+
+void
+TabBar::tabInserted(int index)
+{
+    QTabBar::tabInserted(index);
+    if (index < 0)
+        return;
+    if (index > m_split_counts.size())
+        m_split_counts.resize(index);
+    m_split_counts.insert(index, 1);
+}
+
+void
+TabBar::tabRemoved(int index)
+{
+    QTabBar::tabRemoved(index);
+    if (index < 0 || index >= m_split_counts.size())
+        return;
+    m_split_counts.removeAt(index);
+}
+
+void
+TabBar::tabMoved(int from, int to)
+{
+    QTabBar::tabMoved(from, to);
+    if (from < 0 || from >= m_split_counts.size())
+        return;
+    if (to < 0 || to >= m_split_counts.size())
+        return;
+    m_split_counts.move(from, to);
 }
 
 void

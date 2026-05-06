@@ -3,6 +3,12 @@
 lektra = lektra or {}
 lektra.ui = {}
 
+--- Options for the picker dialog
+---@class FileDialogOptions
+---@field title string Title of the file dialog
+---@field directory string Initial directory to open in the file dialog, default is the current working directory
+---@field filter string File filter to apply in the file dialog, default is "*.*"
+
 ---@class PickerOptions
 ---@field flat boolean Whether to show items in a flat list or a tree view, default is false (tree view)
 ---@field columns table List of column names to display in the picker, default is {"Value"}
@@ -39,3 +45,9 @@ lektra.ui.input = function(title, prompt) end
 ---@param options? PickerOptions
 lektra.ui.picker = function (prompt, items, options) end
 
+--- Shows a file dialog to the user and returns the selected file path as a string
+---@overload fun(arg: {title: string, directory?: string, filter?: string}): string[]
+---@param mode string "open" or "save"
+---@param options FileDialogOptions Options for the file dialog
+---@return string[] FilePaths List of selected file paths
+lektra.ui.file_dialog = function(mode, options) end
