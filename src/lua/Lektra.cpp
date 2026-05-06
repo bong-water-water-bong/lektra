@@ -52,6 +52,7 @@ Lektra::initLua() noexcept
     initLuaView();
     initLuaKeymaps();
     initLuaMousemaps();
+    initLuaUtils();
 
     lua_setglobal(m_L, "lektra");
 
