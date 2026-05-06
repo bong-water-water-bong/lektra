@@ -2,9 +2,31 @@
 lektra = lektra or {}
 lektra.view = {}
 
+---@enum Mode
+--- Represents the different interaction modes available in Lektra.
+Mode = {
+    None = 0,
+    VisualLine = 1,
+    RegionSelection = 2,
+    TextSelection = 3,
+    TextHighlight = 4,
+    AnnotSelect = 5,
+    AnnotRect = 6,
+    AnnotPopup = 7,
+}
+
+---@enum LayoutMode
+--- Represents the different layout modes available in Lektra for displaying documents.
+LayoutMode = {
+    Single = 0,
+    Book = 1,
+    Horizontal = 2,
+    Vertical = 3,
+}
+
+
 ---@class View
 --- Represents a View in Lektra.
----@field id integer The unique identifier of the document.
 local View = {}
 
 ---@class Location
@@ -173,7 +195,84 @@ function View:save_as(file_path) end
 ---@return string text_content
 function View:extract_text(formatted) end
 
+--- Returns the unique identifier of the view.
+---@return integer id
+function View:id() end
+
+--- Returns the spacing between pages in the document view, in pixels.
+---@return integer spacing
+function View:spacing() end
+
+--- Gets the current mode of the view
+---@return Mode mode The current interaction mode (e.g., "select", "pan", "zoom").
+function View:mode() end
+
+--- Sets the interaction mode of the view
+---@param mode Mode The desired interaction mode
+function View:set_mode(mode) end
+
+--- Sets the device pixel ratio (DPR) for the view
+---@param dpr number The desired device pixel ratio (e.g., 1.0 for standard displays, 2.0 for high-DPI displays). Setting the DPR can improve rendering quality on high-DPI screens.
+function View:set_dpr(dpr) end
+
+--- Gets the current device pixel ratio (DPR) for the view
+---@return number dpr The current device pixel ratio (e.g., 1.0 for standard displays, 2.0 for high-DPI displays).
+function View:dpr() end
+
+--- Sets whether to invert the colors of the document in the view. Inverting colors can be useful for reducing eye strain or improving readability in low-light conditions.
+---@param invert boolean True to enable color inversion, false to disable it.
+function View:set_invert(invert) end
+
+--- Gets whether color inversion is currently enabled for the document in the view.
+---@return boolean invert True if color inversion is enabled, false otherwise.
+function View:is_invert() end
+
+--- Returns if the document has unsaved changes.
+function View:is_modified() end
+
+--- Sets the layout mode of the document in the view. The layout mode determines how pages are arranged in the view (e.g., single page, book view, horizontal scrolling, vertical scrolling).
+---@param layout LayoutMode The desired layout mode
+function View:set_layout(layout) end
+
+--- Gets the current layout mode of the document in the view. The layout mode determines how pages are arranged in the view (e.g., single page, book view, horizontal scrolling, vertical scrolling).
+---@return LayoutMode layout The current layout mode
+function View:layout() end
+
+--- Returns the portal associated with the view, if any.
+---@return View portal The portal view associated with the current view, or nil if there is no portal.
+function View:portal() end
+
+--- Returns true if the view is a portal, false otherwise.
+---@return boolean is_portal True if the view is a portal, false otherwise.
+function View:is_portal() end
+
+--- Sets the portal for the view. A portal is a secondary view that can be used to display a different document or a different part of the same document. When a portal is set for a view, the portal's content will be displayed alongside the main view, allowing for side-by-side comparison or reference.
+---@param portal_view View The view to set as the portal for the current view. Setting a
+function View:set_portal(portal_view) end
+
+--- Sets the active state of the view. An active view is the one that currently has focus and receives user input. Setting a view as active will bring it to the foreground and allow the user to interact with it.
+---@param active boolean True to set the view as active, false to deactivate it.
+function View:set_active(active) end
+
+--- Returns true if the view is currently active, false otherwise. An active view is the one that currently has focus and receives user input.
+---@return boolean is_active True if the view is active, false otherwise.
+function View:is_active() end
+
+--- Enables or disables visual line mode for the view. Visual line mode is a display mode that wraps lines of text at the edge of the view, allowing for easier reading of long lines without horizontal scrolling. When visual line mode is enabled, lines will be wrapped based on the width of the view, and the user can navigate through the wrapped lines as if they were separate lines.
+---@param enabled boolean True to enable visual line mode, false to disable it.
+function View:set_visual_line_mode(enabled) end
+
+--- Returns true if visual line mode is currently enabled for the view, false otherwise. Visual line mode is a display mode that wraps lines of text at the edge of the view, allowing for easier reading of long lines without horizontal scrolling.
+---@return boolean enabled True if visual line mode is enabled, false otherwise.
+function View:is_visual_line_mode() end
+
+--- Returns true if the view is currently in thumbnail view mode, false otherwise. Thumbnail view mode is a display mode that shows small thumbnail images of each page in the document, allowing for quick navigation and overview of the document's structure.
+---@return boolean is_thumbnail True if the view is in thumbnail view mode, false otherwise.
+function View:is_thumbnail_view() end
+
+
 -- ##########################################
+
 
 --- Gets the view with the given id.
 --- @param id? integer

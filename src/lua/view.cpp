@@ -20,6 +20,28 @@ static const luaL_Reg DocumentViewMethods[] = {
                     return 0;
                 }),
 
+    VIEW_METHOD("set_dpr",
+                {
+                    if (*view)
+                        (*view)->setDPR(
+                            static_cast<float>(luaL_checknumber(L, 2)));
+                    return 0;
+                }),
+
+    VIEW_METHOD("dpr",
+                {
+                    if (*view)
+                    {
+                        lua_pushnumber(L, (*view)->dpr());
+                    }
+                    else
+                    {
+                        lua_pushnil(L);
+                    }
+
+                    return 1;
+                }),
+
     VIEW_METHOD("pageno",
                 {
                     lua_pushinteger(L, (*view)->pageNo() + 1);
@@ -121,20 +143,6 @@ static const luaL_Reg DocumentViewMethods[] = {
                     return 0;
                 }),
 
-    VIEW_METHOD("fit",
-                {
-                    if (*view)
-                    {
-                        auto fit_mode = (*view)->fitMode();
-                        lua_pushinteger(L, static_cast<int>(fit_mode));
-                    }
-                    else
-                    {
-                        lua_pushnil(L);
-                    }
-                    return 0;
-                }),
-
     VIEW_METHOD(
         "set_fit",
         {
@@ -158,6 +166,89 @@ static const luaL_Reg DocumentViewMethods[] = {
             }
             return 0;
         }),
+
+    VIEW_METHOD("fit",
+                {
+                    if (*view)
+                    {
+                        auto fit_mode = (*view)->fitMode();
+                        lua_pushinteger(L, static_cast<int>(fit_mode));
+                    }
+                    else
+                    {
+                        lua_pushnil(L);
+                    }
+                    return 0;
+                }),
+
+    VIEW_METHOD("mode",
+                {
+                    if (*view)
+                    {
+                        auto mode = (*view)->selectionMode();
+                        lua_pushinteger(L, static_cast<int>(mode));
+                    }
+                    else
+                    {
+                        lua_pushnil(L);
+                    }
+                    return 0;
+                }),
+
+    VIEW_METHOD("set_invert",
+                {
+                    if (*view)
+                    {
+                        (*view)->setInvertColor(lua_toboolean(L, 2));
+                        return 1;
+                    }
+                    else
+                    {
+                        lua_pushnil(L);
+                        return 1;
+                    }
+                }),
+
+    VIEW_METHOD("is_modified",
+                {
+                    if (*view)
+                    {
+                        lua_pushboolean(L, (*view)->isModified());
+                    }
+                    else
+                    {
+                        lua_pushnil(L);
+                    }
+
+                    return 1;
+                }),
+
+    VIEW_METHOD("is_invert",
+                {
+                    if (*view)
+                    {
+                        lua_pushboolean(L, (*view)->invertColor());
+                    }
+                    else
+                    {
+                        lua_pushnil(L);
+                    }
+
+                    return 1;
+                }),
+
+    VIEW_METHOD("set_mode",
+                {
+                    if (*view)
+                    {
+                        // TODO
+                    }
+                    else
+                    {
+                        lua_pushnil(L);
+                    }
+                    return 0;
+                }),
 
     VIEW_METHOD("rotation",
                 {
@@ -203,22 +294,125 @@ static const luaL_Reg DocumentViewMethods[] = {
         {
             if (*view)
             {
-                auto layout_mode = luaL_checkstring(L, 2);
-                if (strcmp(layout_mode, "single") == 0)
-                    (*view)->setLayoutMode(DocumentView::LayoutMode::SINGLE);
-                else if (strcmp(layout_mode, "horizontal") == 0)
-                    (*view)->setLayoutMode(
-                        DocumentView::LayoutMode::HORIZONTAL);
-                else if (strcmp(layout_mode, "vertical") == 0)
-                    (*view)->setLayoutMode(DocumentView::LayoutMode::VERTICAL);
-                else if (strcmp(layout_mode, "book") == 0)
-                    (*view)->setLayoutMode(DocumentView::LayoutMode::BOOK);
-                else
-                    return luaL_error(L, "Invalid layout mode: %s",
-                                      layout_mode);
+                auto layout_mode = luaL_checkinteger(L, 2);
+                switch (layout_mode)
+                {
+                    case static_cast<int>(DocumentView::LayoutMode::SINGLE):
+                        (*view)->setLayoutMode(
+                            DocumentView::LayoutMode::SINGLE);
+                        break;
+                    case static_cast<int>(DocumentView::LayoutMode::HORIZONTAL):
+                        (*view)->setLayoutMode(
+                            DocumentView::LayoutMode::HORIZONTAL);
+                        break;
+                    case static_cast<int>(DocumentView::LayoutMode::VERTICAL):
+                        (*view)->setLayoutMode(
+                            DocumentView::LayoutMode::VERTICAL);
+                        break;
+                    case static_cast<int>(DocumentView::LayoutMode::BOOK):
+                        (*view)->setLayoutMode(DocumentView::LayoutMode::BOOK);
+                        break;
+                    default:
+                        return luaL_error(L, "Invalid layout mode: %d",
+                                          layout_mode);
+                }
             }
+
             return 0;
         }),
+
+    VIEW_METHOD("is_portal",
+                {
+                    if (*view)
+                    {
+                        lua_pushboolean(L, (*view)->is_portal());
+                        return 1;
+                    }
+                    else
+                    {
+                        lua_pushnil(L);
+                        return 1;
+                    }
+                }),
+
+    VIEW_METHOD("set_portal",
+                {
+                    if (*view)
+                    {
+                        auto *portal
+                            = static_cast<DocumentView *>(lua_touserdata(L, 2));
+                        if (portal)
+                            (*view)->setPortal(portal);
+                        return 1;
+                    }
+                    else
+                    {
+                        lua_pushnil(L);
+                        return 1;
+                    }
+                }),
+
+    VIEW_METHOD("set_active",
+                {
+                    if (*view)
+                    {
+                        bool active = lua_toboolean(L, 2);
+                        (*view)->setActive(active);
+                    }
+                    return 0;
+                }),
+
+    VIEW_METHOD("is_active",
+                {
+                    if (*view)
+                    {
+                        lua_pushboolean(L, (*view)->isActive());
+                    }
+                    else
+                    {
+                        lua_pushnil(L);
+                    }
+
+                    return 1;
+                }),
+
+    VIEW_METHOD("is_visual_line_mode",
+                {
+                    if (*view)
+                    {
+                        lua_pushboolean(L, (*view)->visual_line_mode());
+                        return 1;
+                    }
+                    else
+                    {
+                        lua_pushnil(L);
+                        return 1;
+                    }
+                }),
+
+    VIEW_METHOD("set_visual_line_mode",
+                {
+                    if (*view)
+                    {
+                        bool enabled = lua_toboolean(L, 2);
+                        (*view)->set_visual_line_mode(enabled);
+                    }
+                    return 0;
+                }),
+
+    VIEW_METHOD("is_thumbnail_view",
+                {
+                    if (*view)
+                    {
+                        lua_pushboolean(L, (*view)->isThumbnailView());
+                        return 1;
+                    }
+                    else
+                    {
+                        lua_pushnil(L);
+                        return 1;
+                    }
+                }),
 
     VIEW_METHOD("has_selection",
                 {
@@ -331,6 +525,7 @@ static const luaL_Reg DocumentViewMethods[] = {
                         return 1;
                     }
                 }),
+
     VIEW_METHOD("file_type",
                 {
                     if (*view)
@@ -511,6 +706,48 @@ static const luaL_Reg DocumentViewMethods[] = {
                     if (*view)
                     {
                         lua_pushboolean(L, (*view)->isModified());
+                        return 1;
+                    }
+                    else
+                    {
+                        lua_pushnil(L);
+                        return 1;
+                    }
+                }),
+
+    VIEW_METHOD("is_image",
+                {
+                    if (*view)
+                    {
+                        lua_pushboolean(L, (*view)->model()->isImage());
+                        return 1;
+                    }
+                    else
+                    {
+                        lua_pushnil(L);
+                        return 1;
+                    }
+                }),
+
+    VIEW_METHOD("id",
+                {
+                    if (*view)
+                    {
+                        lua_pushinteger(L, (*view)->id());
+                        return 1;
+                    }
+                    else
+                    {
+                        lua_pushnil(L);
+                        return 1;
+                    }
+                }),
+
+    VIEW_METHOD("spacing",
+                {
+                    if (*view)
+                    {
+                        lua_pushnumber(L, (*view)->spacing());
                         return 1;
                     }
                     else

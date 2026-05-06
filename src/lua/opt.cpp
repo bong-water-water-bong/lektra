@@ -68,10 +68,7 @@ static const LuaField pageFields[] = {
     lua_pushinteger(L, static_cast<Config::Page *>(p)->bg);
     return 1;
 }, [](lua_State *L, P p)
-{ static_cast<Config::Page *>(p)->bg = lua_tointeger(L, 3); },
-    [] (Lektra *lektra){
-
-    }},
+{ static_cast<Config::Page *>(p)->bg = lua_tointeger(L, 3); }},
     {"fg",
      [](lua_State *L, P p)
 {
