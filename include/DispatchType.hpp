@@ -18,6 +18,8 @@ enum class DispatchType
     OnSearchFinished,
     OnAnnotationAdded,
     OnAnnotationRemoved,
+    OnRegionSelectionContextMenuRequested,
+    OnTextSelectionContextMenuRequested,
     COUNT
 };
 
@@ -36,6 +38,10 @@ static const QHash<QString, DispatchType> __dispatchEventMap = {
     {"OnSearchFinished", DispatchType::OnSearchFinished},
     {"OnAnnotationAdded", DispatchType::OnAnnotationAdded},
     {"OnAnnotationRemoved", DispatchType::OnAnnotationRemoved},
+    {"OnRegionSelectionContextMenuRequested",
+     DispatchType::OnRegionSelectionContextMenuRequested},
+    {"OnTextSelectionContextMenuRequested",
+     DispatchType::OnTextSelectionContextMenuRequested},
 };
 
 inline static DispatchType

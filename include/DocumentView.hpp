@@ -36,6 +36,7 @@ extern "C"
 #include <QWidget>
 #include <qevent.h>
 #include <set>
+#include <unordered_map>
 
 #ifdef WITH_LUA
     #include "LuaCallback.hpp"
@@ -56,6 +57,7 @@ extern "C"
 
 struct Config;
 class DocumentContainer; // Forward declaration to avoid circular dependency
+class QMenu;
 
 class DocumentView : public QWidget
 {
@@ -313,6 +315,35 @@ public:
     }
 
     void removeEventListener(DispatchType type, int handle) noexcept;
+
+    enum class ContextMenuType
+    {
+        TextSelection = 0,
+        RegionSelection
+    };
+
+    using MenuCallbackFn = std::function<void(DocumentView *, QMenu *)>;
+
+    struct MenuCallback
+    {
+        int ref;
+        MenuCallbackFn invoker;
+        bool is_once = false;
+    };
+
+    void addContextMenuListener(ContextMenuType type, int handle, bool is_once,
+                                MenuCallbackFn callback) noexcept
+    {
+        m_lua_context_menu_dispatcher[type].push_back(
+            {.ref = handle, .invoker = callback, .is_once = is_once});
+    }
+
+    inline void clearContextMenuListeners(ContextMenuType type) noexcept
+    {
+        m_lua_context_menu_dispatcher[type].clear();
+    }
+
+    void removeContextMenuListener(ContextMenuType type, int handle) noexcept;
 #endif
 
 #ifdef WITH_IMAGE
@@ -603,6 +634,9 @@ private:
         m_lua_event_dispatcher;
     void dispatchLuaEvent(DispatchType type) noexcept;
     bool removeLuaEventCallback(DispatchType type, int callbackRef) noexcept;
+    std::unordered_map<ContextMenuType, std::vector<MenuCallback>>
+        m_lua_context_menu_dispatcher;
+    void applyLuaContextMenu(ContextMenuType type, QMenu *menu) noexcept;
 #endif
 
     QHash<int, GraphicsImageItem *> m_page_items_hash;
