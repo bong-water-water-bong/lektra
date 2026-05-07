@@ -2254,7 +2254,6 @@ Model::populatePDFProperties(
         }
     }
 
-    // ========== Add Derived Properties ==========
     props.push_back(
         qMakePair("PDF Version", QString("%1.%2")
                                      .arg(m_pdf_doc->version / 10)
