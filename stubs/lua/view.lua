@@ -123,9 +123,10 @@ function View:set_layout(layout) end
 function View:has_selection() end
 
 --- Returns the text of the current selection in the document.
----@param formatted boolean Whether to return the selection text with formatting (e.g., newlines, tabs) or as plain text. Default is false (plain text).
+---@param formatted? boolean Whether to return the selection text with formatting (e.g., newlines, tabs) or as plain text. Default is false (plain text).
+---@param page_separator? string An optional string to use as a separator between pages in the selection text when formatted is true. Default is "\n--- Page Break ---\n".
 ---@return string selection_text
-function View:selection_text(formatted) end
+function View:selection_text(formatted, page_separator) end
 
 --- Clears the current selection in the document.
 function View:clear_selection() end

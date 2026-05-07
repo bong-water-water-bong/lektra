@@ -6,3 +6,7 @@ lektra.utils = {}
 ---@overload fun(arg: any)
 ---@param ... any
 lektra.utils.print = function (...) end
+
+--- Opens the specified URL in the user's default web browser.
+---@param url string The URL to open
+lektra.utils.open_url = function (url) end
