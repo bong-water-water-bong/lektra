@@ -5523,3 +5523,56 @@ DocumentView::removeEventListener(DispatchType type, int handle) noexcept
 }
 
 #endif
+
+QString
+DocumentView::selectionText(bool formatted,
+                            std::string separator) const noexcept
+{
+    // Copy the state so we can normalize it safely
+    QPointF start = m_selection_start;
+    QPointF end   = m_selection_end;
+    int startP    = m_selection_start_page;
+    int endP      = m_selection_end_page;
+    QString fullText;
+
+    for (int p = startP; p <= endP; ++p)
+    {
+        GraphicsImageItem *item = m_page_items_hash.value(p, nullptr);
+        assert(item && "Page is not yet in the hash map");
+
+        QString text;
+        if (p == startP && p == endP)
+        {
+            text = m_model->get_selected_text(p, item->mapFromScene(start),
+                                              item->mapFromScene(end),
+                                              formatted);
+        }
+        else if (p == startP)
+        {
+            // From start point to END of page
+            text = m_model->get_selected_text(
+                p, item->mapFromScene(start),
+                QPointF(item->boundingRect().bottomRight()), formatted);
+        }
+        else if (p == endP)
+        {
+            // From START of page to end point
+            text = m_model->get_selected_text(
+                p, QPointF(0, 0), item->mapFromScene(end), formatted);
+        }
+        else
+        {
+            // Full page
+            text = m_model->get_selected_text(
+                p, QPointF(0, 0), QPointF(item->boundingRect().bottomRight()),
+                formatted);
+        }
+
+        fullText += text;
+
+        if (p < endP && !text.isEmpty())
+            fullText += QString::fromStdString(separator);
+    }
+
+    return fullText;
+}

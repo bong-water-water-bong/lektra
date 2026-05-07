@@ -290,12 +290,8 @@ public:
                 && m_selection_end_page >= 0);
     }
 
-    inline QString selectionText(bool formatted) const noexcept
-    {
-        return m_model->get_selected_text(m_selection_start_page,
-                                          m_selection_start, m_selection_end,
-                                          formatted);
-    }
+    QString selectionText(bool formatted             = false,
+                          std::string page_separator = "\n") const noexcept;
 
     inline QString extractText(bool formatted) const noexcept
     {
