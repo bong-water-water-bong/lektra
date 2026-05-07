@@ -103,5 +103,13 @@ Lektra::initLuaUtils() noexcept
     lua_pushcfunction(m_L, l_print);
     lua_setfield(m_L, -2, "print");
 
+    lua_pushcfunction(m_L, [](lua_State *L) -> int
+    {
+        const char *url = luaL_checkstring(L, 1);
+        QDesktopServices::openUrl(QUrl::fromUserInput(QString::fromUtf8(url)));
+        return 0;
+    });
+    lua_setfield(m_L, -2, "open_url");
+
     lua_setfield(m_L, -2, "utils");
 }
