@@ -5,7 +5,17 @@
 ### Features
 
 - Add optional lua scripting support (experimental, work in progress)
+    - API overview
+        - `lektra.opt` - for getting and setting config options
+        - `lektra.cmd` - for command related stuff
+        - `lektra.ui`  - for UI related stuff (e.g. showing notifications, input dialogs, etc.)
+        - `lektra.tabs` - for managing tabs
+        - `lektra.event` - for subscribing to events (e.g. page change, file open, etc.)
+        - `lektra.keymap` - for managing keybindings
+        - `lektra.mousemap` - for managing mousebindings
+        - `lektra.utils` - for utility functions
     - Check [LUA-WIKI.md](LUA-WIKI.md) for more details and examples of the lua scripting support in LEKTRA.
+
 - Vim/Emacs like search hit indexing navigation if `absolute_jump = false` in `[search]`
 - Add bookmarks support with a bookmark picker to view and manage bookmarks. Bookmarks allow users to save specific locations
   in the document for quick access later.
