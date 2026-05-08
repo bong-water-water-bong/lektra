@@ -1243,41 +1243,74 @@ DocumentView::setFitMode(FitMode mode) noexcept
 
     m_fit_mode = mode;
 
-    const auto pageDim = m_model->page_dimension_pts(m_pageno);
+    double bboxW, bboxH;
 
-    const double baseW = (pageDim.width_pts / 72.0) * m_model->DPI();
-    const double baseH = (pageDim.height_pts / 72.0) * m_model->DPI();
-    double rot         = static_cast<double>(m_model->rotation());
-    rot                = std::fmod(rot, 360.0);
-    if (rot < 0)
-        rot += 360.0;
-
-    const double t     = deg2rad(rot);
-    const double c     = std::abs(std::cos(t));
-    const double s     = std::abs(std::sin(t));
-    double bboxW       = baseW * c + baseH * s;
-    const double bboxH = baseW * s + baseH * c;
-
-    if (mode == FitMode::Width && m_layout_mode == LayoutMode::BOOK)
+#ifdef WITH_IMAGE
+    if (m_model->isImage())
     {
-        int leftP  = (m_pageno == 0)
-                         ? 0
-                         : ((m_pageno % 2 != 0) ? m_pageno : m_pageno - 1);
-        int rightP = (m_pageno == 0) ? -1 : leftP + 1;
-
-        auto getW = [&](int p)
+        GraphicsImageItem *imageItem = m_page_items_hash.value(0, nullptr);
+        if (imageItem && !imageItem->image().isNull() && m_current_zoom > 0.0)
         {
-            if (p < 0 || p >= m_model->numPages())
-                return 0.0;
-            const auto dim = m_model->page_dimension_pts(p);
-            return ((dim.width_pts / 72.0) * m_model->DPI()) * c
-                   + ((dim.height_pts / 72.0) * m_model->DPI()) * s;
-        };
+            const QRectF sceneBBox = imageItem->sceneBoundingRect();
+            bboxW                  = sceneBBox.width() / m_current_zoom;
+            bboxH                  = sceneBBox.height() / m_current_zoom;
+        }
+        else
+        {
+            const auto imageDim = m_model->page_dimension_pts(0);
+            const double baseW  = imageDim.width_pts;
+            const double baseH  = imageDim.height_pts;
+            double rot          = static_cast<double>(m_model->rotation());
+            rot                 = std::fmod(rot, 360.0);
+            if (rot < 0)
+                rot += 360.0;
 
-        bboxW = getW(leftP) + getW(rightP);
-        if (m_pageno == 0)
-            bboxW *= 2.0; // Force cover zoom to respect the logical spine
-                          // center
+            const double t = deg2rad(rot);
+            const double c = std::abs(std::cos(t));
+            const double s = std::abs(std::sin(t));
+            bboxW          = baseW * c + baseH * s;
+            bboxH          = baseW * s + baseH * c;
+        }
+    }
+    else
+#endif
+    {
+        const auto pageDim = m_model->page_dimension_pts(m_pageno);
+
+        const double baseW = (pageDim.width_pts / 72.0) * m_model->DPI();
+        const double baseH = (pageDim.height_pts / 72.0) * m_model->DPI();
+        double rot         = static_cast<double>(m_model->rotation());
+        rot                = std::fmod(rot, 360.0);
+        if (rot < 0)
+            rot += 360.0;
+
+        const double t = deg2rad(rot);
+        const double c = std::abs(std::cos(t));
+        const double s = std::abs(std::sin(t));
+        bboxW          = baseW * c + baseH * s;
+        bboxH          = baseW * s + baseH * c;
+
+        if (mode == FitMode::Width && m_layout_mode == LayoutMode::BOOK)
+        {
+            int leftP  = (m_pageno == 0)
+                             ? 0
+                             : ((m_pageno % 2 != 0) ? m_pageno : m_pageno - 1);
+            int rightP = (m_pageno == 0) ? -1 : leftP + 1;
+
+            auto getW = [&](int p)
+            {
+                if (p < 0 || p >= m_model->numPages())
+                    return 0.0;
+                const auto dim = m_model->page_dimension_pts(p);
+                return ((dim.width_pts / 72.0) * m_model->DPI()) * c
+                       + ((dim.height_pts / 72.0) * m_model->DPI()) * s;
+            };
+
+            bboxW = getW(leftP) + getW(rightP);
+            if (m_pageno == 0)
+                bboxW *= 2.0; // Force cover zoom to respect the logical spine
+                              // center
+        }
     }
 
     double newZoom = m_current_zoom;
@@ -5534,15 +5567,14 @@ DocumentView::removeEventListener(DispatchType type, int handle) noexcept
 }
 
 void
-DocumentView::removeContextMenuListener(ContextMenuType type, int handle)
-    noexcept
+DocumentView::removeContextMenuListener(ContextMenuType type,
+                                        int handle) noexcept
 {
     auto &listeners = m_lua_context_menu_dispatcher[type];
-    listeners.erase(
-        std::remove_if(listeners.begin(), listeners.end(),
-                       [handle](const MenuCallback &cb)
-        { return cb.ref == handle; }),
-        listeners.end());
+    listeners.erase(std::remove_if(listeners.begin(), listeners.end(),
+                                   [handle](const MenuCallback &cb)
+    { return cb.ref == handle; }),
+                    listeners.end());
 }
 
 void

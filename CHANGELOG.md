@@ -20,6 +20,7 @@
 
 ### Bug Fixes
 
+- Fix fit mode not working if image files are opened
 - Fix memory leak in `extractText` function in `Model` class
 - Add UTF-8 text conversion for file paths on Windows to fix issues with opening files with non-ASCII characters in their paths on Windows.
 - Reset `m_success = false` at the start of every open in `Model.cpp`
