@@ -355,7 +355,7 @@ if (WITH_SYNCTEX)
 endif()
 
 if (WITH_LUA AND Lua_FOUND)
-    target_include_directories(${PROJECT_NAME} PRIVATE ${Lua_INCLUDE_DIRS})
+    target_include_directories(${PROJECT_NAME} PRIVATE ${LUA_INCLUDE_DIR})
     target_compile_definitions(${PROJECT_NAME} PRIVATE WITH_LUA=1)
     target_link_libraries(${PROJECT_NAME} PRIVATE ${LUA_LIBRARIES})
 endif()
