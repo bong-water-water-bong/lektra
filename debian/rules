@@ -1,9 +1,0 @@
-#!/usr/bin/make -f
-
-# Main entry point for debhelper
-%:
-	dh $@
-
-# If you need specific CMake flags, uncomment and edit:
-# override_dh_auto_configure:
-# 	dh_auto_configure -- -DCMAKE_BUILD_TYPE=Release -DENABLE_LUA=ON
