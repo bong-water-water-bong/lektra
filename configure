@@ -42,27 +42,27 @@ while [ "$#" -gt 0 ]; do
             ;;
         --with-image)
             WITH_IMAGE="on"
-            shift 2
+            shift 1
             ;;
         --without-image)
             WITH_IMAGE="off"
-            shift 2
+            shift 1
             ;;
         --with-synctex)
             WITH_SYNCTEX="on"
-            shift 2
+            shift 1
             ;;
         --without-synctex)
             WITH_SYNCTEX="off"
-            shift 2
+            shift 1
             ;;
         --with-lua)
             WITH_LUA="on"
-            shift 2
+            shift 1
             ;;
         --without-lua)
             WITH_LUA="off"
-            shift 2
+            shift 1
             ;;
         -h|--help)
             print_help
