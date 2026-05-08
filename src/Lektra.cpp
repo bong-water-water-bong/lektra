@@ -921,6 +921,7 @@ Lektra::initConfig() noexcept
         set(selection["copy_on_select"], m_config.selection.copy_on_select);
         set_color(selection["color"], m_config.selection.color);
     }
+
     /* scrollbars */
     if (auto scrollbars = toml["scrollbars"])
     {
@@ -1198,6 +1199,7 @@ Lektra::initConfig() noexcept
         set(behavior["recent_files"], m_config.behavior.recent_files);
         set(behavior["num_recent_files"], m_config.behavior.num_recent_files);
         set(behavior["cache_pages"], m_config.behavior.cache_pages);
+        set(behavior["auto_scroll"], m_config.behavior.auto_scroll);
     }
 
     if (auto keybindings = toml["keybindings"])

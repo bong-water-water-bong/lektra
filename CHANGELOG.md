@@ -4,6 +4,9 @@
 
 ### Features
 
+- Auto scroll on text selection mode to keep the selection in view when selecting text
+  with the mouse or keyboard, which provides a smoother and more intuitive text selection experience,
+  especially for longer documents where the selected text may go out of view.
 - Add optional lua scripting support (experimental, work in progress)
     - API overview
         - `lektra.opt` - for getting and setting config options

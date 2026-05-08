@@ -1052,6 +1052,12 @@ struct Config
         // @added 0.3.0
         bool confirm_on_quit = false;
 
+        // @desc Auto scroll when selecting text that is out of view
+        // @type bool
+        // @default true
+        // @added 0.7.1
+        bool auto_scroll = true;
+
         // @desc Undo limit
         // @type int
         // @default 25

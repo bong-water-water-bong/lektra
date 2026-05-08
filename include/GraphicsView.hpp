@@ -238,11 +238,15 @@ private:
     void forwardMouseEvent(QScrollBar *bar, QMouseEvent *event);
     MouseAction resolveMouseAction(Qt::MouseButton button,
                                    Qt::KeyboardModifiers mods) const noexcept;
+    bool updateAutoScroll(const QPoint &pos) noexcept;
+    void applyAutoScroll() noexcept;
+    void stopAutoScroll() noexcept;
 
     QRect m_rect;
     QPoint m_start;
     QPointF m_mousePressPos;
     QPointF m_selection_start;
+    QPoint m_last_mouse_pos;
 
     // Multi-click tracking
     QElapsedTimer m_clickTimer;
@@ -287,6 +291,9 @@ private:
     const Config &m_config;
     QRectF m_visual_line_rect;
     QTimer m_scrollbar_hide_timer;
+    QTimer m_autoscroll_timer;
+    int m_autoscroll_dx = 0;
+    int m_autoscroll_dy = 0;
 
     friend class DocumentView;
 };

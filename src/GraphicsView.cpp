@@ -11,6 +11,7 @@
 #include <QOpenGLContext>
 #include <QOpenGLWidget>
 #include <QScroller>
+#include <algorithm>
 #include <qsurfaceformat.h>
 
 GraphicsView::GraphicsView(const Config &config, QWidget *parent)
@@ -77,6 +78,13 @@ GraphicsView::GraphicsView(const Config &config, QWidget *parent)
     if (!m_rubberBand)
         m_rubberBand = new QRubberBand(QRubberBand::Rectangle, this);
     m_rubberBand->hide();
+
+    if (m_config.behavior.auto_scroll)
+    {
+        m_autoscroll_timer.setInterval(16);
+        connect(&m_autoscroll_timer, &QTimer::timeout, this,
+                &GraphicsView::applyAutoScroll);
+    }
 }
 
 void
@@ -347,15 +355,27 @@ GraphicsView::mouseMoveEvent(QMouseEvent *event)
     if ((m_mode == Mode::TextSelection || m_mode == Mode::TextHighlight)
         && m_selecting)
     {
-        if ((event->pos() - m_lastMovePos).manhattanLength()
-            < MOVE_EMIT_THRESHOLD_PX)
+        m_last_mouse_pos = event->pos();
+        if (m_config.behavior.auto_scroll)
         {
-            event->accept();
-            return;
+            const bool autoScrollActive = updateAutoScroll(event->pos());
+            if (!autoScrollActive
+                && (event->pos() - m_lastMovePos).manhattanLength()
+                       < MOVE_EMIT_THRESHOLD_PX)
+            {
+                event->accept();
+                return;
+            }
         }
+
         m_lastMovePos = event->pos();
 
-        const QPointF scenePos = mapToScene(event->pos());
+        const QRect vpRect = viewport()->rect();
+        const int clampedX
+            = std::clamp(event->pos().x(), 0, vpRect.width() - 1);
+        const int clampedY
+            = std::clamp(event->pos().y(), 0, vpRect.height() - 1);
+        const QPointF scenePos = mapToScene(QPoint(clampedX, clampedY));
 
         if (m_mode == Mode::TextSelection || m_mode == Mode::TextHighlight)
             emit textSelectionRequested(m_selection_start, scenePos);
@@ -430,6 +450,7 @@ GraphicsView::mouseReleaseEvent(QMouseEvent *event)
     m_selecting      = false;
     bool wasDragging = m_dragging;
     m_dragging       = false;
+    stopAutoScroll();
     event->accept();
 
     const QPointF scenePos = mapToScene(event->pos());
@@ -679,6 +700,96 @@ GraphicsView::scrollContentsBy(int dx, int dy)
     QGraphicsView::scrollContentsBy(dx, dy);
     if (m_scrollbarsVisible)
         layoutScrollbars();
+}
+
+bool
+GraphicsView::updateAutoScroll(const QPoint &pos) noexcept
+{
+    const QRect vpRect = viewport()->rect();
+    if (vpRect.isEmpty())
+    {
+        stopAutoScroll();
+        return false;
+    }
+
+    constexpr int edge     = 32;
+    constexpr int maxSpeed = 30;
+
+    auto speedFor = [maxSpeed](int dist)
+    {
+        return std::clamp(dist, 1, maxSpeed);
+    };
+
+    int dx = 0;
+    int dy = 0;
+
+    if (pos.x() < edge)
+        dx = -speedFor(edge - pos.x());
+    else if (pos.x() > vpRect.width() - 1 - edge)
+        dx = speedFor(pos.x() - (vpRect.width() - 1 - edge));
+
+    if (pos.y() < edge)
+        dy = -speedFor(edge - pos.y());
+    else if (pos.y() > vpRect.height() - 1 - edge)
+        dy = speedFor(pos.y() - (vpRect.height() - 1 - edge));
+
+    m_autoscroll_dx = dx;
+    m_autoscroll_dy = dy;
+
+    if (dx != 0 || dy != 0)
+    {
+        if (!m_autoscroll_timer.isActive())
+            m_autoscroll_timer.start();
+        return true;
+    }
+
+    stopAutoScroll();
+    return false;
+}
+
+void
+GraphicsView::applyAutoScroll() noexcept
+{
+    if (!m_selecting
+        || (m_mode != Mode::TextSelection && m_mode != Mode::TextHighlight))
+    {
+        stopAutoScroll();
+        return;
+    }
+
+    if (m_autoscroll_dx != 0)
+    {
+        auto *bar = horizontalScrollBar();
+        if (bar)
+            bar->setValue(bar->value() + m_autoscroll_dx);
+    }
+
+    if (m_autoscroll_dy != 0)
+    {
+        auto *bar = verticalScrollBar();
+        if (bar)
+            bar->setValue(bar->value() + m_autoscroll_dy);
+    }
+
+    const QRect vpRect = viewport()->rect();
+    if (vpRect.isEmpty())
+        return;
+
+    const int clampedX
+        = std::clamp(m_last_mouse_pos.x(), 0, vpRect.width() - 1);
+    const int clampedY
+        = std::clamp(m_last_mouse_pos.y(), 0, vpRect.height() - 1);
+    const QPointF scenePos = mapToScene(QPoint(clampedX, clampedY));
+    emit textSelectionRequested(m_selection_start, scenePos);
+}
+
+void
+GraphicsView::stopAutoScroll() noexcept
+{
+    m_autoscroll_dx = 0;
+    m_autoscroll_dy = 0;
+    if (m_autoscroll_timer.isActive())
+        m_autoscroll_timer.stop();
 }
 
 QScrollBar *
