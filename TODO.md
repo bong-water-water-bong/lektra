@@ -10,7 +10,6 @@
 - [ ] Allow for command arguments
 - [ ] Allow opening multiple files from the file dialog
 - [ ] Render large gifs quickly and efficiently
-- [ ] Fix conflicting shortcuts to override default shortcuts
 - [ ] Tab detach drag and drop to new window spawns new useless window
 - [ ] Add copy text to text highlight annotation for convenience
 - [ ] Boundary of the annotations need to extend only for the annotation
@@ -24,10 +23,8 @@
 - [ ] Scissor mode for cropping and copying specific regions of the PDF when zoomed in to a high level (high performance gain)
 - [ ] Text selection change pos on resize event
 - [ ] Picker strong key grab
-- [ ] Bug fixes and performance improvements
 - [ ] History for pickers
 - [ ] Don't add connection to annotation when in non-annotatable mode
-- [ ] External search engine configuration
 
 ## MEDIUM PRIORITY
 
@@ -36,7 +33,6 @@
 - [ ] Password protected PDFs thumbnail view asking for password, do something about it.
 - [ ] Show text highlight brush cursor when highlighting text
 - [ ] Drag and drop tabs not working, also get it to work with splits
-- [ ] Shell Scripting
 - [ ] lektra.readthedocs.io page
 
 ## LOW PRIORITY
