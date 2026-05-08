@@ -15,15 +15,17 @@ Mode = {
     AnnotPopup = 7,
 }
 
----@enum LayoutMode
---- Represents the different layout modes available in Lektra for displaying documents.
-LayoutMode = {
-    Single = 0,
-    Book = 1,
-    Horizontal = 2,
-    Vertical = 3,
-}
+---@class Container
+--- Represents the underlying document and rendering context for a view in Lektra.
+local Container = {}
 
+--- Splits the view vertically, creating a new view that shares the same document. The new view will be displayed alongside the original view, allowing for side-by-side comparison or reference.
+---@return View new_view The newly created view that shares the same document as the original view.
+function Container:vsplit() end
+
+--- Splits the view horizontally, creating a new view that shares the same document. The new view will be displayed above or below the original view, allowing for side-by-side comparison or reference.
+---@return View new_view The newly created view that shares the same document as the original view.
+function Container:hsplit() end
 
 ---@class View
 --- Represents a View in Lektra.
@@ -282,7 +284,9 @@ function View:is_visual_line_mode() end
 ---@return boolean is_thumbnail True if the view is in thumbnail view mode, false otherwise.
 function View:is_thumbnail_view() end
 
-
+--- Returns the Container object associated with the view.
+---@return Container container The container object associated with the view, which provides access to the underlying document and rendering context.
+function View:container() end
 -- ##########################################
 
 
