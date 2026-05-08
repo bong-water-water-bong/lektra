@@ -2007,6 +2007,10 @@ Model::computeTextSelectionQuad(int pageno, QPointF devStart,
 
     fz_try(m_ctx)
     {
+        fz_stext_page *stext_page = get_or_build_stext_page(m_ctx, pageno);
+        if (!stext_page)
+            fz_throw(m_ctx, FZ_ERROR_GENERIC, "Failed to build text page");
+
         const auto [w, h] = getPageDimensions(pageno);
         if (w < 0 || h < 0)
         {
@@ -2037,10 +2041,6 @@ Model::computeTextSelectionQuad(int pageno, QPointF devStart,
         {
             std::swap(a, b);
         }
-
-        fz_stext_page *stext_page = get_or_build_stext_page(m_ctx, pageno);
-        if (!stext_page)
-            fz_throw(m_ctx, FZ_ERROR_GENERIC, "Failed to build text page");
 
         count = highlight_selection(stext_page, a, b, hits.data(), MAX_HITS);
     }
