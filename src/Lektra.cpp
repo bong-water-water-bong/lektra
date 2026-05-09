@@ -589,7 +589,8 @@ Lektra::initConfig() noexcept
         }
     }
 
-    m_session_dir = m_app_data_dir.filePath("sessions");
+    m_session_dir         = m_app_data_dir.filePath("sessions");
+    m_bookmarks_file_path = m_app_data_dir.filePath("bookmarks.json");
 
     if (!m_session_dir.exists())
     {
@@ -602,7 +603,6 @@ Lektra::initConfig() noexcept
     if (!QFile::exists(m_config_file_path))
         return;
 
-    m_bookmarks_file_path = m_app_data_dir.filePath("bookmarks.json");
     toml::table toml;
 
     try
@@ -2145,13 +2145,14 @@ Lektra::populateBookmarks() noexcept
 
         QJsonObject obj = value.toObject();
 
+        QString id       = obj["id"].toString();
         QString label    = obj["label"].toString();
         QString filePath = obj["file_path"].toString();
         PageLocation loc = PageLocation::fromJson(obj["location"].toArray());
         QDateTime created
             = QDateTime::fromString(obj["added_on"].toString(), Qt::ISODate);
 
-        bookmarks.emplace_back(filePath, loc, created);
+        bookmarks.emplace_back(filePath, loc, created, id);
     }
 
     m_bookmark_manager.setBookmarks(bookmarks);
@@ -4241,8 +4242,8 @@ Lektra::getSessionFiles() noexcept
     }
 
     static const QStringList jsonFilter = {"*.json"};
-    for (const QString &file : m_session_dir.entryList(
-             jsonFilter, QDir::Files | QDir::NoSymLinks))
+    for (const QString &file :
+         m_session_dir.entryList(jsonFilter, QDir::Files | QDir::NoSymLinks))
         sessions << QFileInfo(file).completeBaseName();
 
     return sessions;
@@ -6513,7 +6514,7 @@ Lektra::RemoveBookmark() noexcept
     if (!m_doc)
         return;
 
-    m_bookmark_manager.removeBookmark(m_doc->filePath());
+    // TODO: Fix the implementation
 }
 
 void
