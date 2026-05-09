@@ -756,6 +756,10 @@ DocumentView::handleSearchResults(
         GotoHit(m_search_index);
     else
         GotoHit(getClosestHitIndex());
+
+#ifdef WITH_LUA
+    dispatchLuaEvent(DispatchType::OnSearchFinished);
+#endif
 }
 
 void
@@ -1761,6 +1765,10 @@ DocumentView::SearchCancel() noexcept
     renderSearchHitsInScrollbar();
     emit searchCountChanged(-1);
     emit searchIndexChanged(-1);
+
+#ifdef WITH_LUA
+    dispatchLuaEvent(DispatchType::OnSearchCancelled);
+#endif
 }
 
 void
@@ -1789,6 +1797,10 @@ DocumentView::Search(const QString &term, bool useRegex) noexcept
     // Always search from the first page, but hit index is determined by
     // current location
     m_model->search(term, caseSensitive, 0, useRegex);
+
+#ifdef WITH_LUA
+    dispatchLuaEvent(DispatchType::OnSearchStarted);
+#endif
 }
 
 void
@@ -1815,6 +1827,9 @@ DocumentView::SearchInPage(const int pageno, const QString &term) noexcept
 
     // m_search_hits = m_model->search(term);
     m_model->searchInPage(pageno, term, caseSensitive);
+#ifdef WITH_LUA
+    dispatchLuaEvent(DispatchType::OnSearchStarted);
+#endif
 }
 
 // Zoom in by a fixed factor
