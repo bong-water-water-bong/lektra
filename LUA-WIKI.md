@@ -17,6 +17,13 @@ Document view helpers and per-document actions.
 - `x: number` — X coordinate on the page.
 - `y: number` — Y coordinate on the page.
 
+**`OutlineEntry`** — one node in the document outline tree:
+- `title: string` — Entry text.
+- `pageno: integer | nil` — 1-based destination page; `nil` for external or destination-less links.
+- `x: number` — X jump coordinate on the destination page.
+- `y: number` — Y jump coordinate on the destination page.
+- `children: OutlineEntry[]` — Child entries (empty table for leaf nodes).
+
 ### View methods
 
 | Method | Returns | Description |
@@ -70,6 +77,7 @@ Document view helpers and per-document actions.
 | `view:search_hit_count()` | `integer` | Number of current search hits. |
 | `view:mode()` | `integer` | Current selection/interaction mode. |
 | `view:set_mode()` | — | *(Not yet implemented — raises an error.)* |
+| `view:outline()` | `OutlineEntry[]` | Document outline (table of contents) as a tree. Returns an empty table if the document has no outline. |
 
 #### Per-view event listeners
 

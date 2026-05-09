@@ -7,6 +7,38 @@
 namespace
 {
 
+static void
+push_outline_nodes(lua_State *L, fz_outline *node)
+{
+    lua_newtable(L);
+    int idx = 1;
+    for (fz_outline *n = node; n; n = n->next, ++idx)
+    {
+        lua_newtable(L);
+
+        lua_pushstring(L, n->title ? n->title : "");
+        lua_setfield(L, -2, "title");
+
+        // page.page is 0-based; -1 means external/no destination
+        if (n->page.page >= 0)
+            lua_pushinteger(L, n->page.page + 1);
+        else
+            lua_pushnil(L);
+        lua_setfield(L, -2, "pageno");
+
+        lua_pushnumber(L, n->x);
+        lua_setfield(L, -2, "x");
+
+        lua_pushnumber(L, n->y);
+        lua_setfield(L, -2, "y");
+
+        push_outline_nodes(L, n->down); // empty table when n->down == nullptr
+        lua_setfield(L, -2, "children");
+
+        lua_rawseti(L, -2, idx);
+    }
+}
+
 #define VIEW_METHOD(name, body)                                                \
     {name, [](lua_State *L) -> int                                             \
     {                                                                          \
@@ -920,9 +952,8 @@ static const luaL_Reg DocumentViewMethods[] = {
                 {
                     if (*view)
                     {
-                        lua_newtable(L);
-                        auto outline = (*view)->model()->getOutline();
-                        // TODO: Implement outline
+                        fz_outline *outline = (*view)->model()->getOutline();
+                        push_outline_nodes(L, outline);
                     }
                     else
                     {
