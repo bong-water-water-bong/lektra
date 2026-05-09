@@ -427,21 +427,35 @@ DocumentView::startGifPlayback() noexcept
     m_anim_timer = new QTimer(this);
     m_anim_timer->setSingleShot(true);
 
+    m_anim_frame_clock.start();
+
     connect(m_anim_timer, &QTimer::timeout, this, [this]()
     {
         if (!m_model->isAnimated())
             return;
 
-        const int next
-            = (m_model->currentAnimFrame() + 1) % m_model->frameCount();
+        const int frameCount = m_model->frameCount();
+        const int start      = m_model->currentAnimFrame();
+        int next             = (start + 1) % frameCount;
+
+        // Skip frames that haven't been decoded yet (background decode
+        // still in progress). Wrap around at most once to avoid spinning.
+        while (!m_model->animFrameReady(next) && next != start)
+            next = (next + 1) % frameCount;
 
         m_model->setCurrentAnimFrame(next);
 
         renderImage();
 
-        m_anim_timer->start(m_model->frameDelayMs(next));
+        // Subtract the time already spent (decode + render) from the
+        // nominal delay so the overall cadence stays on schedule.
+        const int delay     = m_model->frameDelayMs(next);
+        const int elapsed   = static_cast<int>(m_anim_frame_clock.restart());
+        const int remaining = std::max(0, delay - elapsed);
+        m_anim_timer->start(remaining);
     });
 
+    m_anim_frame_clock.restart();
     m_anim_timer->start(m_model->frameDelayMs(0));
 }
 

@@ -784,13 +784,18 @@ private:
     bool m_is_animated = false;
     QList<QImage> m_animated_frames;
     QList<int> m_frame_delays_ms;
-    QImage getAnimatedFrame(int index) noexcept;
     int m_frame_count   = 0;
     int m_current_frame = 0;
 
     int currentAnimFrame() const noexcept
     {
         return m_current_frame;
+    }
+
+    bool animFrameReady(int index) const noexcept
+    {
+        return index >= 0 && index < m_animated_frames.size()
+               && !m_animated_frames[index].isNull();
     }
 
     int frameCount() const noexcept

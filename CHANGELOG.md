@@ -97,6 +97,33 @@
 
 ### Performance
 
+- `lua/view.cpp`: Implement `view:outline()` — returns the document table of contents as a
+  recursive Lua table tree. Each entry has `title`, `pageno` (1-based, `nil` for external
+  links), `x`, `y`, and a `children` array for nested headings.
+- `Model.cpp` / `DocumentView.cpp`: Overhaul animated image (GIF) playback performance:
+  - **Two-pass open**: `pingImages` reads frame count and per-frame delays from headers only
+    (no pixel I/O). A single `[0]` scene read then decodes frame 0 and emits
+    `openFileFinished` immediately, so the image appears without waiting for the full decode.
+    Remaining frames are decoded in a background thread via `readImages` + `coalesceImages`.
+  - **Remove dead `getAnimatedFrame`**: the function re-read and re-coalesced the entire file
+    from disk on every call just to produce one frame. It was never called; removed entirely.
+  - **Eliminate `m_image_cache` indirection for animated frames**: `setCurrentAnimFrame` now
+    only updates `m_current_frame`; `requestImageRender` reads directly from
+    `m_animated_frames[m_current_frame]`, removing a per-advance QImage copy.
+  - **Remove unconditional `qDebug` in `setCurrentAnimFrame`**: the debug log fired on every
+    frame advance (30+ times per second in all build configurations).
+  - **Fix `cleanup_image` not resetting animated state**: `m_animated_frames`,
+    `m_frame_delays_ms`, `m_frame_count`, and `m_current_frame` were left populated when
+    switching away from an animated image.
+  - **Frame-skip during startup**: the playback timer skips frames that have not been decoded
+    yet (background decode still in progress) instead of displaying a blank frame.
+  - **Elapsed-time frame scheduling**: the animation timer now subtracts actual render time
+    from the next frame's nominal delay via `QElapsedTimer`, keeping the playback cadence
+    on schedule even when individual frames render slowly.
+  - **Free raw Magick frames early**: in the background decode path, the raw `readImages`
+    vector is cleared immediately after `coalesceImages` so decoded-but-uncompressed Magick
+    memory is released before the QImage conversion loop begins.
+
 - `DocumentView.cpp`: Replace `QGraphicsItem::data(0).toString()` tag checks with `QSet<int>`
   membership tests (`m_placeholder_pages`, `m_preload_pages`) eliminating repeated
   `QVariant`→`QString` conversions in hot loops inside `removeUnusedPageItems`,

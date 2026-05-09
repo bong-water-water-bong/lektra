@@ -905,6 +905,11 @@ Model::cleanup_image() noexcept
 {
     m_image_cache = QImage();
     m_is_image    = false;
+    m_is_animated = false;
+    m_animated_frames.clear();
+    m_frame_delays_ms.clear();
+    m_frame_count   = 0;
+    m_current_frame = 0;
     m_page_dim_cache.reset(0);
     m_default_page_dim = {};
 }
@@ -980,157 +985,154 @@ Model::openAsync_image(const QString &canonPath) noexcept
     {
         Magick::InitializeMagick(nullptr);
 
-        std::vector<Magick::Image> frames;
-        try
-        {
-            const QByteArray pathBytes = canonPath.toUtf8();
-            Magick::readImages(
-                &frames, std::string(pathBytes.constData(), pathBytes.size()));
-        }
-        catch (const Magick::Exception &e)
-        {
-            qWarning() << "ImageMagick failed:" << e.what();
-            QMetaObject::invokeMethod(this, &Model::openFileFailed,
-                                      Qt::QueuedConnection);
-            return;
-        }
-
-        if (frames.empty())
-        {
-            QMetaObject::invokeMethod(this, &Model::openFileFailed,
-                                      Qt::QueuedConnection);
-            return;
-        }
-
-        // ── Helpers ─────────────────────────────────────────────
+        const QByteArray pathBytes = canonPath.toUtf8();
+        const std::string pathStr(pathBytes.constData(), pathBytes.size());
 
         auto delayMs = [](const Magick::Image &img) -> int
         {
-            int ms = (int)(img.animationDelay() * 10);
+            int ms = static_cast<int>(img.animationDelay() * 10);
             return ms < 20 ? 100 : ms;
         };
 
-        // ── Detect animation ─────────────────────────────────────
-
-        if (frames.size() > 1)
+        // ── Step 1: Ping for metadata — no pixel I/O ─────────────
+        // pingImages reads only headers: frame count, delays, canvas size.
+        // For a 200-frame GIF this completes in milliseconds.
+        std::vector<Magick::Image> pings;
+        try
         {
-            std::vector<Magick::Image> coalesced;
-            try
-            {
-                Magick::coalesceImages(&coalesced, frames.begin(),
-                                       frames.end());
-            }
-            catch (const Magick::Exception &e)
-            {
-                qWarning() << "Coalesce failed:" << e.what();
-                QMetaObject::invokeMethod(this, &Model::openFileFailed,
-                                          Qt::QueuedConnection);
-                return;
-            }
-
-            if (coalesced.empty())
-            {
-                QMetaObject::invokeMethod(this, &Model::openFileFailed,
-                                          Qt::QueuedConnection);
-                return;
-            }
-
-            // Convert ONLY first frame immediately
-            QImage first = toQImage(coalesced[0]);
-
-            const float w = static_cast<float>(first.width());
-            const float h = static_cast<float>(first.height());
-
-            // Precompute delays (cheap)
-            QList<int> delays;
-            delays.reserve((int)coalesced.size());
-            for (const auto &f : coalesced)
-                delays.push_back(delayMs(f));
-
-            // Send initial state to UI
-            QMetaObject::invokeMethod(this,
-                                      [this, first = std::move(first), delays,
-                                       frames = std::move(coalesced), w,
-                                       h]() mutable
-            {
-                cleanup_image();
-
-                m_is_image    = true;
-                m_is_animated = true;
-                m_success     = true;
-
-                m_page_count       = 1;
-                m_default_page_dim = {w, h};
-
-                m_page_dim_cache.dimensions.assign(1, m_default_page_dim);
-                m_page_dim_cache.known.assign(1, true);
-
-                m_frame_delays_ms = delays;
-                m_frame_count     = frames.size();
-                m_current_frame   = 0;
-
-                // cache: only first frame for now
-                m_animated_frames.resize(m_frame_count);
-                m_animated_frames[0] = first;
-                m_image_cache        = first;
-
-                emit openFileFinished();
-
-                // ── Background decoding of remaining frames ──
-                auto _ = QtConcurrent::run(
-                    [&, frames = std::move(frames)]() mutable
-                {
-                    for (int i = 1; i < (int)frames.size(); ++i)
-                    {
-                        QImage img = toQImage(frames[i]);
-
-                        QMetaObject::invokeMethod(
-                            this, [this, i, img = std::move(img)]() mutable
-                        {
-                            if (i < m_animated_frames.size())
-                                m_animated_frames[i] = std::move(img);
-                        }, Qt::QueuedConnection);
-                    }
-                });
-            },
+            Magick::pingImages(&pings, pathStr);
+        }
+        catch (const Magick::Exception &e)
+        {
+            qWarning() << "ImageMagick ping failed:" << e.what();
+            QMetaObject::invokeMethod(this, &Model::openFileFailed,
                                       Qt::QueuedConnection);
-
             return;
         }
 
-        // ── Static image ────────────────────────────────────────
-
-        QImage base = toQImage(std::move(frames[0]));
-
-        if (base.isNull())
+        if (pings.empty())
         {
             QMetaObject::invokeMethod(this, &Model::openFileFailed,
                                       Qt::QueuedConnection);
             return;
         }
 
-        const float w = static_cast<float>(base.width());
-        const float h = static_cast<float>(base.height());
+        const int frameCount = static_cast<int>(pings.size());
 
+        // ── Step 2: Decode frame 0 only — show the image immediately ──
+        // Using the [0] scene specifier avoids reading all frames up front.
+        // Frame 0 of any valid animated image is always a complete canvas image,
+        // so no coalescing is needed for the initial display.
+        Magick::Image firstImg;
+        try
+        {
+            firstImg.read(pathStr + "[0]");
+        }
+        catch (const Magick::Exception &e)
+        {
+            qWarning() << "ImageMagick read frame 0 failed:" << e.what();
+            QMetaObject::invokeMethod(this, &Model::openFileFailed,
+                                      Qt::QueuedConnection);
+            return;
+        }
+
+        QImage first = toQImage(std::move(firstImg));
+        if (first.isNull())
+        {
+            QMetaObject::invokeMethod(this, &Model::openFileFailed,
+                                      Qt::QueuedConnection);
+            return;
+        }
+
+        const float w = static_cast<float>(first.width());
+        const float h = static_cast<float>(first.height());
+
+        // ── Static image (single frame) ───────────────────────────
+        if (frameCount == 1)
+        {
+            QMetaObject::invokeMethod(this,
+                                      [this, first = std::move(first), w,
+                                       h]() mutable
+            {
+                cleanup_image();
+                m_is_image    = true;
+                m_is_animated = false;
+                m_success     = true;
+                m_page_count  = 1;
+                m_default_page_dim = {w, h};
+                m_page_dim_cache.dimensions.assign(1, m_default_page_dim);
+                m_page_dim_cache.known.assign(1, true);
+                m_image_cache = std::move(first);
+                emit openFileFinished();
+            }, Qt::QueuedConnection);
+            return;
+        }
+
+        // ── Collect delays from ping metadata (no pixel cost) ─────
+        QList<int> delays;
+        delays.reserve(frameCount);
+        for (const auto &p : pings)
+            delays.push_back(delayMs(p));
+        pings.clear();
+
+        // ── Step 3: Emit openFileFinished with frame 0 ───────────
+        // The UI becomes responsive immediately; remaining frames are decoded
+        // in the background below and stored as they finish.
         QMetaObject::invokeMethod(this,
-                                  [this, base = std::move(base), w, h]() mutable
+                                  [this, first, delays, frameCount, w,
+                                   h]() mutable
         {
             cleanup_image();
-
             m_is_image    = true;
-            m_is_animated = false;
+            m_is_animated = true;
             m_success     = true;
-
-            m_page_count       = 1;
+            m_page_count  = 1;
             m_default_page_dim = {w, h};
-
             m_page_dim_cache.dimensions.assign(1, m_default_page_dim);
             m_page_dim_cache.known.assign(1, true);
-
-            m_image_cache = std::move(base);
-
+            m_frame_delays_ms = delays;
+            m_frame_count     = frameCount;
+            m_current_frame   = 0;
+            m_animated_frames.resize(frameCount);
+            m_animated_frames[0] = std::move(first);
             emit openFileFinished();
         }, Qt::QueuedConnection);
+
+        // ── Step 4: Background full decode of remaining frames ────
+        // readImages + coalesceImages happen here, off the UI thread.
+        // Each frame is posted to the UI thread as it finishes so the
+        // animation improves progressively rather than all-at-once.
+        QtConcurrent::run([this, pathStr, frameCount]()
+        {
+            try
+            {
+                std::vector<Magick::Image> frames;
+                Magick::readImages(&frames, pathStr);
+                if (frames.empty())
+                    return;
+
+                std::vector<Magick::Image> coalesced;
+                Magick::coalesceImages(&coalesced, frames.begin(), frames.end());
+                frames.clear(); // free raw frames as soon as coalescing is done
+
+                for (int i = 1; i < static_cast<int>(coalesced.size())
+                                && i < frameCount;
+                     ++i)
+                {
+                    QImage img = toQImage(std::move(coalesced[i]));
+                    QMetaObject::invokeMethod(
+                        this, [this, i, img = std::move(img)]() mutable
+                    {
+                        if (i < m_animated_frames.size())
+                            m_animated_frames[i] = std::move(img);
+                    }, Qt::QueuedConnection);
+                }
+            }
+            catch (const Magick::Exception &e)
+            {
+                qWarning() << "Background frame decode failed:" << e.what();
+            }
+        });
     });
 }
 
@@ -2351,13 +2353,18 @@ Model::createRenderJob(int pageno) const noexcept
 QImage
 Model::requestImageRender(bool highQuality) noexcept
 {
-    if (!m_is_image || m_image_cache.isNull())
+    if (!m_is_image)
         return {};
 
     // 1. Handle Animated Images
     if (m_is_animated)
     {
-        QImage frame = m_image_cache;
+        if (m_current_frame < 0 || m_current_frame >= m_animated_frames.size())
+            return {};
+        const QImage &src = m_animated_frames[m_current_frame];
+        if (src.isNull())
+            return {};
+        QImage frame = src;
         if (m_rotation != 0)
         {
             QTransform trans;
@@ -2369,6 +2376,9 @@ Model::requestImageRender(bool highQuality) noexcept
             frame.invertPixels();
         return frame;
     }
+
+    if (m_image_cache.isNull())
+        return {};
 
     // 2. Determine base dimensions after rotation
     // Use QTransform to see how dimensions swap at 90/270 degrees
@@ -4777,59 +4787,13 @@ Model::waitForPendingRenders() noexcept
 }
 
 #ifdef WITH_IMAGE
-QImage
-Model::getAnimatedFrame(int index) noexcept
-{
-    if (index < 0 || index >= m_frame_count)
-        return {};
-    try
-    {
-        std::vector<Magick::Image> frames;
-        const QByteArray pathBytes = m_filepath.toUtf8();
-        Magick::readImages(
-            &frames, std::string(pathBytes.constData(), pathBytes.size()));
-        if (frames.empty())
-            return {};
-
-        std::vector<Magick::Image> coalesced;
-        Magick::coalesceImages(&coalesced, frames.begin(), frames.end());
-
-        if (index >= (int)coalesced.size())
-            return {};
-
-        auto &f = coalesced[index];
-    #if MagickLibVersion < 0x712
-        f.matte(true);
-    #else
-        f.alpha(true);
-    #endif
-        f.depth(8);
-        Magick::Blob blob;
-        f.write(&blob, "RGBA");
-        const size_t fw = f.columns(), fh = f.rows();
-        QImage qi(static_cast<const uchar *>(blob.data()), (int)fw, (int)fh,
-                  (int)(fw * 4), QImage::Format_RGBA8888);
-        return qi.copy();
-    }
-    catch (const Magick::Exception &e)
-    {
-        qWarning() << "getAnimatedFrame failed:" << e.what();
-        return {};
-    }
-}
 
 void
 Model::setCurrentAnimFrame(int index) noexcept
 {
-    qDebug() << "setCurrentAnimFrame" << index
-             << "frames available:" << m_animated_frames.size() << "frame null?"
-             << (index < m_animated_frames.size()
-                     ? m_animated_frames[index].isNull()
-                     : true);
-    if (index < 0 || index >= (int)m_animated_frames.size())
+    if (index < 0 || index >= m_frame_count)
         return;
     m_current_frame = index;
-    m_image_cache   = m_animated_frames[index];
 }
 #endif
 
