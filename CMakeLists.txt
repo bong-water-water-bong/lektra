@@ -55,6 +55,9 @@ add_compile_definitions(
     APP_INSTALL_PREFIX="${CMAKE_INSTALL_PREFIX}"
     APP_VERSION="${PROJECT_VERSION}"
     APP_NAME="${PROJECT_NAME}"
+    APP_VERSION_MAJOR="${PROJECT_VERSION_MAJOR}"
+    APP_VERSION_MINOR="${PROJECT_VERSION_MINOR}"
+    APP_VERSION_PATCH="${PROJECT_VERSION_PATCH}"
 )
 
 # ---------------------------------------------------------------------------
