@@ -8,7 +8,8 @@ BookmarkPicker::BookmarkPicker(const Config::Picker &config,
                                BookmarkManager *manager, QWidget *parent)
     : Picker(config, parent), m_bookmark_manager(manager)
 {
-    setColumns({{.header = "Bookmarks", .stretch = 1}});
+    setColumns({{.header = "ID", .stretch = 1},
+                {.header = "Bookmarks", .stretch = 1}});
     setStructureMode(StructureMode::Flat);
     setPrompt("Bookmarks");
 }
@@ -21,11 +22,12 @@ BookmarkPicker::collectItems()
     for (const auto &bookmark : m_bookmark_manager->bookmarks())
     {
         items.push_back({
-            .columns  = {bookmark.filePath()},
+            .columns  = {bookmark.id(), bookmark.filePath()},
             .data     = bookmark.filePath(),
             .children = {},
         });
     }
+
     return items;
 }
 
