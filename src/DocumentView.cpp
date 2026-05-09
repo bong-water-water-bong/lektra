@@ -1913,13 +1913,13 @@ DocumentView::GotoHit(int index) noexcept
     else if (index >= static_cast<int>(m_search_hit_flat_refs.size()))
         index = 0;
 
-    const HitRef ref  = m_search_hit_flat_refs[index];
+    const HitRef ref       = m_search_hit_flat_refs[index];
     m_search_index         = index;
     m_cached_hit_index     = -2;
     m_cached_hit_page_item = nullptr;
     m_pageno               = ref.page;
-    const auto &hit   = m_search_hits[ref.page][ref.indexInPage];
-    const float scale = m_model->logicalScale();
+    const auto &hit        = m_search_hits[ref.page][ref.indexInPage];
+    const float scale      = m_model->logicalScale();
 
     emit searchIndexChanged(index);
     emit currentPageChanged(ref.page + 1);
@@ -2958,7 +2958,8 @@ DocumentView::startNextRenderJob() noexcept
 
     while (!m_visible_render_queue.isEmpty() || !m_render_queue.isEmpty())
     {
-        // Visible-page queue is always drained first; fall back to preload queue
+        // Visible-page queue is always drained first; fall back to preload
+        // queue
         int pageno = (!m_visible_render_queue.isEmpty())
                          ? m_visible_render_queue.dequeue()
                          : m_render_queue.dequeue();
@@ -3104,8 +3105,8 @@ DocumentView::removeUnusedPageItems(const std::set<int> &visibleSet) noexcept
     for (auto it = m_page_items_hash.cbegin(); it != m_page_items_hash.cend();
          ++it)
     {
-        const int pageno  = it.key();
-        auto *item        = it.value();
+        const int pageno = it.key();
+        auto *item       = it.value();
 
         if (visibleSet.count(pageno))
             continue;
@@ -3700,8 +3701,8 @@ DocumentView::updateCurrentHitHighlight() noexcept
     m_cached_hit_index     = m_search_index;
     m_cached_hit_page_item = pageItem;
 
-    const float scale    = m_model->logicalScale();
-    const auto &hit      = m_search_hits[ref.page][ref.indexInPage];
+    const float scale = m_model->logicalScale();
+    const auto &hit   = m_search_hits[ref.page][ref.indexInPage];
 
     QPolygonF poly;
     poly.reserve(4);
