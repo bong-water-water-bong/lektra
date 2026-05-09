@@ -1,380 +1,542 @@
 # lektra Lua API
 
-This document mirrors the Lua stub definitions under `stubs/lua/` and gives
-short usage examples for scripting Lektra.
-
-## Modules
-
 All Lua APIs live under the global `lektra` table.
 
-### lektra.view
+---
+
+## lektra.view
 
 Document view helpers and per-document actions.
 
-#### Types
+### Types
 
-- `View`
-  - `id: integer` Unique identifier of the document.
-- `Location`
-  - `page: integer` Page number.
-  - `x: number` X coordinate on the page.
-  - `y: number` Y coordinate on the page.
-- `OpenFileOptions`
-  - `fit: string?` Fit mode (`"width"`, `"height"`, `"window"`).
-  - `zoom: number?` Zoom level (e.g. `1.0` for 100%).
-- `SearchOptions`
-  - `case_sensitive: boolean?` Case sensitive search.
-  - `whole_word: boolean?` Whole word only.
-  - `regex: boolean?` Treat query as regex.
+**`View`** — opaque userdata returned by view functions.
 
-#### View methods
+**`Location`** — three separate return values, not a table:
+- `pageno: integer` — 1-based page number.
+- `x: number` — X coordinate on the page.
+- `y: number` — Y coordinate on the page.
 
-- `view:pageno() -> integer`
-  - Return current page number.
-- `view:open(file: string, opts?: OpenFileOptions)`
-  - Open a document in the current view.
-  - Overload: `view:open({ file = "path", opts = { ... } })`.
-- `view:close()`
-  - Close the document in the current view.
-- `view:goto_page(pageno: integer)`
-  - Go to a page number.
-- `view:page_count() -> integer`
-  - Total number of pages.
-- `view:goto_location(location: Location)`
-  - Jump to a location object.
-- `view:location() -> Location`
-  - Current location.
-- `view:history_back()`
-  - Go back in location history.
-- `view:history_forward()`
-  - Go forward in location history.
-- `view:zoom() -> number`
-  - Current zoom level.
-- `view:set_zoom(zoom: number)`
-  - Set zoom level.
-- `view:fit() -> string`
-  - Current fit mode.
-- `view:set_fit(mode: string)`
-  - Set fit mode.
-- `view:rotation() -> integer`
-  - Rotation in degrees.
-- `view:set_rotation(rotation: integer)`
-  - Set rotation in degrees.
-- `view:layout() -> string`
-  - Layout mode (`"single"`, `"book"`, `"horizontal"`, `"vertical"`).
-- `view:set_layout(layout: string)`
-  - Set layout mode.
-- `view:has_selection() -> boolean`
-  - Whether there is a selection.
-- `view:selection_text(formatted: boolean) -> string`
-  - Return current selection text.
-- `view:clear_selection()`
-  - Clear selection.
-- `view:search(query: string, regex?: boolean)`
-  - Search for query, optionally as regex.
-  - Overload: `view:search({ query = "...", regex = true })`.
-- `view:search_hit_next()`
-  - Jump to next hit.
-- `view:search_hit_previous()`
-  - Jump to previous hit.
-- `view:search_cancel()`
-  - Cancel search and clear highlights.
-- `view:search_hits() -> Location[]`
-  - List of hit locations.
-- `view:search_hit_count() -> integer`
-  - Number of hits.
-- `view:file_path() -> string`
-  - Current file path.
-- `view:file_type() -> string`
-  - File type (`"pdf"`, `"epub"`, ...).
+### View methods
+
+| Method | Returns | Description |
+|---|---|---|
+| `view:pageno()` | `integer` | Current page number (1-based). |
+| `view:page_count()` | `integer` | Total pages. |
+| `view:goto_page(n)` | — | Go to page `n` (1-based). |
+| `view:goto_location(n, x, y)` | — | Jump to page `n` at coordinates `x`, `y`. |
+| `view:location()` | `pageno, x, y` | Current location (three return values). |
+| `view:history_back()` | — | Go back in navigation history. |
+| `view:history_forward()` | — | Go forward in navigation history. |
+| `view:zoom()` | `number` | Current zoom level (1.0 = 100%). |
+| `view:set_zoom(z)` | — | Set zoom level. |
+| `view:fit()` | `integer` | Current fit mode (see `lektra.opt.FitMode`). |
+| `view:set_fit(mode)` | — | Set fit mode integer. |
+| `view:rotation()` | `number` | Rotation in degrees. |
+| `view:set_rotation(r)` | — | Set rotation in degrees. |
+| `view:layout()` | `integer` | Current layout mode (see `lektra.opt.LayoutMode`). |
+| `view:set_layout(mode)` | — | Set layout mode integer. |
+| `view:dpr()` | `number` | Device pixel ratio. |
+| `view:set_dpr(r)` | — | Set device pixel ratio. |
+| `view:spacing()` | `number` | Page spacing in pixels. |
+| `view:is_invert()` | `boolean` | Whether colour inversion is active. |
+| `view:set_invert(b)` | — | Enable or disable colour inversion. |
+| `view:is_modified()` | `boolean` | Whether the document has unsaved changes. |
+| `view:is_active()` | `boolean` | Whether this view is the focused split. |
+| `view:set_active(b)` | — | Set focus state. |
+| `view:is_image()` | `boolean` | Whether the open file is an image. |
+| `view:is_portal()` | `boolean` | Whether this view is a portal clone. |
+| `view:is_visual_line_mode()` | `boolean` | Whether visual-line mode is on. |
+| `view:set_visual_line_mode(b)` | — | Enable or disable visual-line mode. |
+| `view:is_thumbnail_view()` | `boolean` | Whether this is a thumbnail panel view. |
+| `view:id()` | `integer` | Stable unique ID for this view. |
+| `view:file_path()` | `string` | Path of the open document. |
+| `view:file_type()` | `string` | File type string (`"pdf"`, `"epub"`, …). |
+| `view:open(path)` | — | Open a file in this view. |
+| `view:close()` | — | Close the document in this view. |
+| `view:reload()` | — | Reload the file from disk. |
+| `view:save()` | — | Save the document. |
+| `view:save_as()` | — | *(Not yet implemented — raises an error.)* |
+| `view:undo()` | — | Undo the last action. |
+| `view:redo()` | — | Redo the last undone action. |
+| `view:extract_text(formatted)` | `string` | Extract text from the current page. |
+| `view:has_selection()` | `boolean` | Whether text is selected. |
+| `view:selection_text(formatted)` | `string` | Selected text. |
+| `view:clear_selection()` | — | Clear the current selection. |
+| `view:search(query, regex?)` | — | Search the document. |
+| `view:search_hit_next()` | — | Jump to next search hit. |
+| `view:search_hit_prev()` | — | Jump to previous search hit. |
+| `view:search_cancel()` | — | Cancel search and clear highlights. |
+| `view:search_hit_count()` | `integer` | Number of current search hits. |
+| `view:mode()` | `integer` | Current selection/interaction mode. |
+| `view:set_mode()` | — | *(Not yet implemented — raises an error.)* |
+
+#### Per-view event listeners
+
 - `view:register(event: string, callback: function) -> integer`
-  - Register a view event callback.
-  - Overload: `view:register({ name = "event", callback = fn })`.
+  Register a callback for a view-level event. Returns a handle for later removal.
+  Per-view events use **string names** (unlike `lektra.event` which uses integer constants).
+
 - `view:unregister(event: string, handle: integer)`
-  - Unregister a previously registered callback.
-  - Overload: `view:unregister({ name = "event", handle = id })`.
-- `view:once(event: string, callback: function)`
-  - Register a one-shot callback.
-- `view:register_context_menu(menu_type: string, callback: function) -> integer`
-  - `menu_type` is `"TextSelection"` or `"RegionSelection"`.
-  - Callback receives `(view, menu)` where `menu` supports `add_item`.
-- `view:unregister_context_menu(menu_type: string, handle: integer)`
-  - Unregister a context menu callback.
-- `view:is_modified() -> boolean`
-  - Whether the document has unsaved changes.
-- `view:save()`
-  - Save document.
-- `view:save_as(file_path: string)`
-  - Save document to a new path.
-- `view:extract_text(formatted: boolean) -> string`
-  - Extract full document text for the current page.
+  Remove a previously registered callback by handle.
 
-#### Module functions
+- `view:register_once(event: string, callback: function)`
+  Register a one-shot callback that fires once then removes itself.
 
-- `lektra.view.get(id?: integer) -> View`
-  - Get view by id.
-- `lektra.view.current() -> View`
-  - Get current active view, or `nil` if none.
-- `lektra.view.list(tabindex?: integer) -> View[]`
-  - List views in a tab or in current tab.
+- `view:clear_listeners(event: string)`
+  Remove all callbacks for a view-level event.
 
-#### Example
+#### Context menu listeners
+
+- `view:register_context_menu(type: string, callback: function) -> integer`
+  `type` is `"TextSelection"` or `"RegionSelection"`.
+  Callback receives `(view, menu)`. `menu` supports `menu:add_item(label, fn)`.
+
+- `view:unregister_context_menu(type: string, handle: integer)`
+  Remove a context menu callback by handle.
+
+### Module functions
+
+- `lektra.view.current() -> View | nil`
+  Active view, or `nil` if no document is open.
+
+- `lektra.view.get(id: integer) -> View | nil`
+  Look up a view by its stable ID.
+
+- `lektra.view.list(tab_index: integer) -> View[]`
+  All views in a given tab (by 0-based tab index).
+
+### Example
 
 ```lua
-local view = lektra.view.current()
-if view then
-  print(view:page_count())
-  view:goto_page(1)
+local v = lektra.view.current()
+if v then
+    print(v:file_path(), v:pageno(), v:page_count())
+    v:goto_page(1)
+    v:set_zoom(1.5)
 end
 ```
 
-### lektra.ui
+---
+
+## lektra.ui
 
 UI helpers.
 
-#### Types
+### Functions
 
-- `PickerOptions`
-  - `flat: boolean` Flat list vs tree view.
-  - `columns: table` Column names (default `{ "Value" }`).
-  - `on_accept: function` Called when item accepted.
-  - `on_cancel: function` Called on cancel.
+- `lektra.ui.messagebox(title, message, type?)`
+  Blocking dialog. `type` is `"info"`, `"warning"`, or `"error"` (default `"info"`).
 
-#### Functions
+- `lektra.ui.message(message, duration?)`
+  Status-bar toast. `duration` is seconds (default 3).
 
-- `lektra.ui.messagebox(title: string, message: string, type?: string)`
-  - `type` is `"info"`, `"warning"`, or `"error"`.
-  - Overload: `lektra.ui.messagebox({ title = "...", message = "...", type = "info" })`.
-- `lektra.ui.message(message: string, duration?: number)`
-  - Show status message in seconds.
-  - Overload: `lektra.ui.message({ message = "...", duration = 5 })`.
-- `lektra.ui.input(title: string, prompt: string) -> string`
-  - Overload: `lektra.ui.input({ title = "...", prompt = "..." })`.
-- `lektra.ui.picker(prompt: string, items: table, options?: PickerOptions) -> string`
-  - Overload: `lektra.ui.picker({ prompt = "...", items = { ... }, options = { ... } })`.
-- `lektra.ui.file_dialog(mode?: string, options?: table) -> string`
-  - `mode` is `"open"` or `"save"` (default `"open"`).
-  - `options.default_path` sets the initial path.
-  - `options.filters` sets file filters (Qt format, e.g. `"PDF (*.pdf);;All (*.*)"`).
-  - Overload: `lektra.ui.file_dialog({ mode = "open", default_path = "...", filters = "..." })`.
-- `lektra.ui.color_dialog(colors: string[]) -> string`
-  - `colors` is a list of color strings (e.g. `"#ff0000"`).
-  - Returns selected color as `#AARRGGBB` or `nil` if cancelled.
-- `lektra.ui.menu(items: table) -> Menu`
-  - Create a menu from a table of `{ label, callback, submenu?, icon? }` items.
-  - Returned `Menu` supports `menu:show()` and `menu:add_item(label, callback)`.
+- `lektra.ui.input(title, prompt) -> string | nil`
+  Text input dialog. Returns `nil` if cancelled.
 
-#### Example
+- `lektra.ui.file_dialog(mode?, options?) -> string | nil`
+  File picker. `mode` is `"open"` or `"save"` (default `"open"`).
+  `options` table: `default_path`, `filters` (Qt filter string e.g. `"PDF (*.pdf);;All (*.*)"`).
+
+- `lektra.ui.color_dialog(colors: string[]) -> string | nil`
+  Colour picker seeded with a list of colour strings.
+  Returns selected colour as `#AARRGGBB`, or `nil` if cancelled.
+
+- `lektra.ui.picker(prompt, items, options?) -> string | nil`
+  General-purpose picker widget.
+  `options` table: `flat` (boolean), `columns` (string[]), `on_accept` (fn), `on_cancel` (fn).
+
+- `lektra.ui.menu(items) -> Menu`
+  Create a popup menu. Each item: `{ label, callback, submenu?, icon? }`.
+  `menu:show()` — display the menu at the cursor.
+  `menu:add_item(label, callback)` — add an item dynamically.
+
+### Example
 
 ```lua
-lektra.ui.message("Hello", 2)
-local file = lektra.ui.file_dialog({ mode = "open", filters = "PDF (*.pdf)" })
+local file = lektra.ui.file_dialog("open", { filters = "PDF (*.pdf);;All (*.*)" })
 if file then
-  lektra.ui.message(file, 2)
+    lektra.ui.message("Opened: " .. file, 3)
 end
 ```
 
-#### Context menu example
+---
+
+## lektra.cmd
+
+Register and execute commands. Registered commands appear in the command palette.
+
+### Functions
+
+- `lektra.cmd.register(name, callback, desc?)`
+  Positional form. `desc` is shown in the command palette.
+
+- `lektra.cmd.register({ name=, callback=, desc= })`
+  Table form.
+
+- `lektra.cmd.unregister(name)`
+  Remove a previously registered command. Frees the Lua function reference.
+
+- `lektra.cmd.execute(name, args?) -> boolean`
+  Run a command by name. `args` is a string array. Returns `true` on success.
+
+- `lektra.cmd.list() -> { name: string, desc: string }[]`
+  All registered commands.
+
+- `lektra.cmd.alias(alias, target)`
+  Create an alias that calls an existing command.
+
+### Example
 
 ```lua
-local registered = {}
+lektra.cmd.register("word_count", function(args)
+    local v = lektra.view.current()
+    if v then
+        local text = v:extract_text(false)
+        local words = select(2, text:gsub("%S+", ""))
+        lektra.ui.message("Words: " .. words, 3)
+    end
+end, "Count words on current page")
+```
 
-local function attach_context_menus(view)
-  if not view then return end
-  local id = view:id()
-  if registered[id] then return end
-  registered[id] = true
+---
 
-  view:register_context_menu("TextSelection", function(v, menu)
-    menu:add_item("Copy Uppercase", function()
-      local text = v:selection_text(true)
-      -- do something with text here
-    end)
-  end)
+## lektra.event
 
-  view:register_context_menu("RegionSelection", function(v, menu)
-    menu:add_item("My Region Action", function()
-      lektra.ui.message("Region action!", 2)
-    end)
-  end)
+Global (app-level) event subscriptions. Uses integer `EventType` constants from
+`lektra.event.EventType`.
+
+### EventType constants
+
+```lua
+lektra.event.EventType.OnAppReady
+lektra.event.EventType.OnReady
+lektra.event.EventType.OnFileOpen
+lektra.event.EventType.OnFileClose
+lektra.event.EventType.OnPageChanged
+lektra.event.EventType.OnZoomChanged
+lektra.event.EventType.OnLinkClicked
+lektra.event.EventType.OnTextSelected
+lektra.event.EventType.OnTabChanged
+lektra.event.EventType.OnSearchStarted
+lektra.event.EventType.OnSearchFinished
+lektra.event.EventType.OnSearchCancelled
+lektra.event.EventType.OnAnnotationAdded
+lektra.event.EventType.OnAnnotationRemoved
+lektra.event.EventType.OnRegionSelectionContextMenuRequested
+lektra.event.EventType.OnTextSelectionContextMenuRequested
+```
+
+### Functions
+
+- `lektra.event.register(EventType, callback) -> integer`
+  Register a persistent callback. Returns a handle for `unregister`.
+  Callback receives the `Lektra` instance as a light userdata (rarely needed).
+
+- `lektra.event.unregister(EventType, handle)`
+  Remove a callback by the handle returned from `register`.
+
+- `lektra.event.once(EventType, callback) -> integer`
+  Register a one-shot callback. Automatically removed after first dispatch.
+
+- `lektra.event.count(event_name: string) -> integer`
+  Number of registered callbacks for a named event (takes a string name here).
+
+### Example
+
+```lua
+local ET = lektra.event.EventType
+
+lektra.event.once(ET.OnAppReady, function()
+    lektra.ui.message("Lektra is ready", 2)
+end)
+
+lektra.event.register(ET.OnPageChanged, function()
+    local v = lektra.view.current()
+    if v then
+        lektra.ui.message("Page " .. v:pageno(), 1)
+    end
+end)
+```
+
+> **Note:** Per-view events registered with `view:register(...)` use **string** event names,
+> not integer `EventType` constants. The two APIs are separate.
+
+---
+
+## lektra.bookmarks
+
+Read the global bookmark list.
+
+### Types
+
+Each entry returned by `list()` is a table with:
+
+| Field | Type | Description |
+|---|---|---|
+| `id` | `string` | Unique bookmark ID. |
+| `file_path` | `string` | Path to the bookmarked file. |
+| `pageno` | `integer` | 1-based page number. |
+| `x` | `number` | X coordinate on the page. |
+| `y` | `number` | Y coordinate on the page. |
+| `created` | `string` | Creation timestamp (human-readable). |
+
+### Functions
+
+- `lektra.bookmarks.list() -> Bookmark[]`
+  Return all bookmarks across all documents.
+
+### Example
+
+```lua
+for _, bm in ipairs(lektra.bookmarks.list()) do
+    print(bm.file_path, bm.pageno)
+end
+```
+
+> **Tip:** To add or remove bookmarks use `lektra.cmd.execute("bookmark_add")` and
+> `lektra.cmd.execute("bookmark_remove")`.
+
+---
+
+## lektra.tabs
+
+Tab management.
+
+### Tab object methods
+
+`lektra.tabs.current()` and similar functions return a **Tab** object with these methods:
+
+| Method | Returns | Description |
+|---|---|---|
+| `tab:id()` | `integer \| nil` | Stable tab ID, or `nil` if invalid. |
+| `tab:index()` | `integer \| nil` | Current positional index (0-based), or `nil`. |
+| `tab:title()` | `string \| nil` | Tab title text, or `nil`. |
+| `tab:view()` | `View \| nil` | The primary view in this tab, or `nil`. |
+| `tab:close()` | — | Close this tab. |
+
+> **Note:** `tab:index()` is positional and can become stale if tabs are reordered or
+> closed. Use `tab:id()` for stable identity.
+
+### Module functions
+
+| Function | Returns | Description |
+|---|---|---|
+| `lektra.tabs.current()` | `Tab \| nil` | Currently active tab. |
+| `lektra.tabs.list()` | `Tab[]` | All open tabs as Tab objects. |
+| `lektra.tabs.count()` | `integer` | Number of open tabs. |
+| `lektra.tabs.get_id(index)` | `integer \| nil` | Tab ID for a given positional index. |
+| `lektra.tabs.goto(index)` | — | Switch to tab at positional index. |
+| `lektra.tabs.close(index?)` | — | Close tab at index (current tab if omitted). |
+| `lektra.tabs.next()` | — | Switch to next tab. |
+| `lektra.tabs.prev()` | — | Switch to previous tab. |
+| `lektra.tabs.first()` | — | Switch to first tab. |
+| `lektra.tabs.last()` | — | Switch to last tab. |
+| `lektra.tabs.move_left()` | — | Move current tab left. |
+| `lektra.tabs.move_right()` | — | Move current tab right. |
+
+### Example
+
+```lua
+-- Print all open tab titles
+for _, tab in ipairs(lektra.tabs.list()) do
+    print(tab:index(), tab:title())
 end
 
-lektra.event.register("OnAppReady", function()
-  for _, v in ipairs(lektra.view.list() or {}) do
-    attach_context_menus(v)
-  end
-end)
-
-lektra.event.register("OnTabChanged", function()
-  attach_context_menus(lektra.view.current())
-end)
+-- Get the view from the current tab
+local tab = lektra.tabs.current()
+if tab then
+    local v = tab:view()
+    if v then
+        print(v:file_path())
+    end
+end
 ```
 
-### lektra.cmd
+---
 
-Register and execute custom commands.
+## lektra.keymap
 
-#### Functions
+Keyboard binding helpers.
 
-- `lektra.cmd.register(name: string, callback: function, desc?: string)`
-  - Overload: `lektra.cmd.register({ name = "...", callback = fn, desc = "..." })`.
-- `lektra.cmd.unregister(name: string)`
-  - Overload: `lektra.cmd.unregister({ name = "..." })`.
-- `lektra.cmd.execute(name: string, args?: table)`
-  - Overload: `lektra.cmd.execute({ name = "...", args = { ... } })`.
+### Functions
 
-#### Example
+- `lektra.keymap.set(command, keys: string[])`
+  Set the key sequence(s) for a command. `keys` is a table of key strings.
+
+- `lektra.keymap.unset(command)`
+  Remove all key bindings for a command.
+
+- `lektra.keymap.get(command) -> string[]`
+  Return the current key bindings for a command.
+
+### Example
 
 ```lua
-lektra.cmd.register("hello", function()
-  lektra.ui.message("Hi from Lua", 2)
-end, "Say hello")
+lektra.keymap.set("zoom_in",  { "Ctrl++", "=" })
+lektra.keymap.set("zoom_out", { "Ctrl+-", "-" })
+print(lektra.keymap.get("zoom_in")[1])  -- "Ctrl++"
 ```
 
-### lektra.event
+---
 
-Global event callbacks.
-
-#### Functions
-
-- `lektra.event.register(event: string, callback: function) -> integer`
-  - Overload: `lektra.event.register({ event = "...", callback = fn })`.
-- `lektra.event.unregister(event: string, handle: integer)`
-  - Overload: `lektra.event.unregister({ event = "...", handle = id })`.
-- `lektra.event.once(event: string, callback: function)`
-  - Overload: `lektra.event.once({ event = "...", callback = fn })`.
-- `lektra.event.clear(event: string)`
-  - Clear all callbacks for an event.
-
-#### Example
-
-```lua
-lektra.event.once("app_ready", function()
-  lektra.ui.message("Ready", 2)
-end)
-```
-
-### lektra.keymap
-
-Keybinding helpers.
-
-#### Functions
-
-- `lektra.keymap.set(name: string, value: string)`
-  - Set keybinding for an action.
-- `lektra.keymap.unset(name: string)`
-  - Remove keybinding for an action.
-
-#### Example
-
-```lua
-lektra.keymap.set("zoom_in", "Ctrl++")
-```
-
-### lektra.mousemap
+## lektra.mousemap
 
 Mouse binding helpers.
 
-#### Functions
+### Functions
 
-- `lektra.mousemap.set(name: string, value: string)`
-  - Set mouse binding (e.g. `"Ctrl+LeftButton"`).
-- `lektra.mousemap.unset(name: string)`
-  - Remove mouse binding.
+- `lektra.mousemap.set(action, trigger: string)`
+  Bind an action to a mouse trigger string (e.g. `"Ctrl+LeftButton"`).
 
-#### Example
+- `lektra.mousemap.unset(action)`
+  Remove the mouse binding for an action.
+
+- `lektra.mousemap.get(action) -> string`
+  Return the current trigger for an action.
+
+### Default action names
+
+| Action | Description |
+|---|---|
+| `pan` | Pan / scroll the document. |
+| `preview` | Show hover preview. |
+| `portal` | Create or focus a portal. |
+| `synctex_jump` | SyncTeX source jump. |
+
+### Example
 
 ```lua
 lektra.mousemap.set("pan", "Alt+LeftButton")
 ```
 
-### lektra.tabs
+---
 
-Tab management.
+## lektra.opt
 
-#### Types
+Read and write configuration options at runtime. All options are under
+`lektra.opt.<section>.<key>`.
 
-- `Tab`
-  - `id: integer` Unique identifier for the tab.
-
-#### Functions
-
-- `lektra.tabs.close(index: integer)`
-  - Close a tab.
-- `lektra.tabs.goto(index: integer)`
-  - Switch to a tab.
-- `lektra.tabs.last()`
-  - Switch to last active tab.
-- `lektra.tabs.first()`
-  - Switch to first tab.
-- `lektra.tabs.next()`
-  - Switch to next tab.
-- `lektra.tabs.prev()`
-  - Switch to previous tab.
-- `lektra.tabs.move_right()`
-  - Move current tab right.
-- `lektra.tabs.move_left()`
-  - Move current tab left.
-- `lektra.tabs.count() -> integer`
-  - Number of open tabs.
-- `lektra.tabs.current() -> Tab`
-  - Current tab object, or `nil` if none.
-- `lektra.tabs.list() -> { index: integer, title: string }[]`
-  - List tab index and title.
-
-#### Tab methods
-
-- `tab:id() -> integer`
-  - Return the tab id.
-
-#### Example
+### Example
 
 ```lua
-for _, tab in ipairs(lektra.tabs.list()) do
-  print(tab.index, tab.title)
-end
+lektra.opt.search.case_sensitive = true
+lektra.opt.rendering.invert_color = false
+print(lektra.opt.zoom.default)
 ```
 
-## Event Names
+Enum tables available under `lektra.opt`:
 
-These names are case-sensitive and must match exactly.
+- `lektra.opt.FitMode` — `WIDTH`, `HEIGHT`, `WINDOW`
+- `lektra.opt.LayoutMode` — `SINGLE`, `HORIZONTAL`, `VERTICAL`, `BOOK`
+- `lektra.opt.MouseButton` — `LEFT`, `RIGHT`, `MIDDLE`
 
-- `OnAppReady`
-- `OnReady`
-- `OnFileOpen`
-- `OnFileClose`
-- `OnPageChanged`
-- `OnZoomChanged`
-- `OnLinkClicked`
-- `OnTabChanged`
-- `OnTextSelected`
-- `OnRegionSelectionContextMenuRequested`
-- `OnTextSelectionContextMenuRequested`
+---
 
-## Predefined Strings
+## lektra.utils
 
-### Fit modes
+General utilities.
 
-- `width`
-- `height`
-- `window`
+### Functions
 
-### Layout modes
+- `lektra.utils.print(...)`
+  Pretty-print any values to stdout, including nested tables.
 
-- `single`
-- `book`
-- `horizontal`
-- `vertical`
+- `lektra.utils.open_url(url)`
+  Open a URL in the system default browser.
 
-### Message box types
+- `lektra.utils.platform() -> string`
+  Returns the current platform: `"linux"`, `"windows"`, or `"macos"`.
 
-- `info`
-- `warning`
-- `error`
+### Example
 
-### Default mousemap action names
+```lua
+if lektra.utils.platform() == "linux" then
+    lektra.utils.open_url("https://example.com")
+end
 
-- `pan`
-- `preview`
-- `portal`
-- `synctex_jump`
+lektra.utils.print({ key = "value", nested = { 1, 2, 3 } })
+```
+
+---
+
+## Event reference
+
+### Global events (`lektra.event`)
+
+Use `lektra.event.EventType.<Name>` as the first argument to `register`, `unregister`, and `once`.
+
+| Name | Fired when |
+|---|---|
+| `OnAppReady` | Application fully initialized. |
+| `OnReady` | A document view is ready. |
+| `OnFileOpen` | A file is opened in a view. |
+| `OnFileClose` | A file is closed. |
+| `OnPageChanged` | Current page changes. |
+| `OnZoomChanged` | Zoom level changes. |
+| `OnLinkClicked` | A link in the document is clicked. |
+| `OnTextSelected` | Text selection changes. |
+| `OnTabChanged` | The active tab changes. |
+| `OnSearchStarted` | A search is started. |
+| `OnSearchFinished` | A search completes. |
+| `OnSearchCancelled` | A search is cancelled. |
+| `OnAnnotationAdded` | An annotation is added. |
+| `OnAnnotationRemoved` | An annotation is removed. |
+| `OnRegionSelectionContextMenuRequested` | Region-selection context menu opens. |
+| `OnTextSelectionContextMenuRequested` | Text-selection context menu opens. |
+
+### Per-view events (`view:register`)
+
+These use **string names**, not `EventType` constants.
+
+| Name | Fired when |
+|---|---|
+| `"OnPageChanged"` | Page changes in this view. |
+| `"OnZoomChanged"` | Zoom changes in this view. |
+| `"OnFileOpen"` | File opens in this view. |
+| `"OnFileClose"` | File closes in this view. |
+| `"OnTextSelected"` | Text is selected in this view. |
+| `"OnLinkClicked"` | Link clicked in this view. |
+| `"OnSearchStarted"` | Search started in this view. |
+| `"OnSearchFinished"` | Search finished in this view. |
+| `"OnSearchCancelled"` | Search cancelled in this view. |
+
+---
+
+## Full example — context menu with page-change tracking
+
+```lua
+local ET = lektra.event.EventType
+local registered = {}
+
+local function attach(view)
+    if not view then return end
+    local id = view:id()
+    if registered[id] then return end
+    registered[id] = true
+
+    view:register_context_menu("TextSelection", function(v, menu)
+        menu:add_item("Copy Uppercase", function()
+            local text = v:selection_text(false)
+            lektra.utils.print(text:upper())
+        end)
+    end)
+
+    view:register("OnPageChanged", function(v)
+        lektra.ui.message("Page " .. v:pageno() .. " / " .. v:page_count(), 1)
+    end)
+end
+
+lektra.event.once(ET.OnAppReady, function()
+    local tab = lektra.tabs.current()
+    if tab then attach(tab:view()) end
+end)
+
+lektra.event.register(ET.OnTabChanged, function()
+    attach(lektra.view.current())
+end)
+
+lektra.event.register(ET.OnFileOpen, function()
+    attach(lektra.view.current())
+end)
+```
