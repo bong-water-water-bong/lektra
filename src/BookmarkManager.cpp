@@ -12,24 +12,25 @@ BookmarkManager::addBookmark(const Bookmark &bookmark)
 }
 
 void
-BookmarkManager::removeBookmark(const QString &file_path)
+BookmarkManager::removeBookmark(Bookmark::BookmarkId id)
 {
     m_bookmarks.erase(std::remove_if(m_bookmarks.begin(), m_bookmarks.end(),
-                                     [&file_path](const Bookmark &bookmark)
-    { return bookmark.filePath() == file_path; }),
+                                     [&id](const Bookmark &bookmark)
+    { return bookmark.id() == id; }),
                       m_bookmarks.end());
 }
 
 QString
-BookmarkManager::getBookmark(const QString &file_path) const
+BookmarkManager::getBookmark(Bookmark::BookmarkId id) const
 {
     for (const auto &bookmark : m_bookmarks)
     {
-        if (bookmark.filePath() == file_path)
+        if (bookmark.id() == id)
         {
-            return bookmark.label();
+            return bookmark.filePath();
         }
     }
+
     return QString();
 }
 
@@ -40,6 +41,7 @@ BookmarkManager::saveBookmarks(const QString &file_path) const
     for (const auto &bookmark : m_bookmarks)
     {
         QJsonObject json_object;
+        json_object["id"]        = bookmark.id();
         json_object["file_path"] = bookmark.filePath();
         json_object["location"]  = bookmark.location().toJson();
         json_object["added_on"]  = bookmark.createdAt().toString(Qt::ISODate);
