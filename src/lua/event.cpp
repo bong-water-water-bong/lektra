@@ -17,7 +17,6 @@ Lektra::removeLuaEventCallback(DispatchType type, int callbackRef) noexcept
     {
         if (cb.ref == callbackRef)
         {
-            // Free the Lua registry reference
             luaL_unref(m_L, LUA_REGISTRYINDEX, cb.ref);
             return true;
         }
@@ -33,124 +32,87 @@ Lektra::initLuaEventDispatcher() noexcept
 {
     lua_newtable(m_L);
 
-    // lektra.event.register(event, callback) -> return an handle (int)
+    // lektra.event.register(EventType, callback) -> handle (int)
     lua_pushlightuserdata(m_L, this);
     lua_pushcclosure(m_L, [](lua_State *L) -> int
     {
         DispatchType type = static_cast<DispatchType>(luaL_checkinteger(L, 1));
         luaL_checktype(L, 2, LUA_TFUNCTION);
 
-        // Store the callback in the registry with a unique key
         int callbackRef = luaL_ref(L, LUA_REGISTRYINDEX);
 
         auto *self
             = static_cast<Lektra *>(lua_touserdata(L, lua_upvalueindex(1)));
 
         self->addEventListener(type, callbackRef, false, [L = self->m_L, callbackRef](Lektra *lektra)
-        {            // Push the callback function onto the stack
+        {
             lua_rawgeti(L, LUA_REGISTRYINDEX, callbackRef);
-
-            // Call the function with the Lektra instance as an argument
             lua_pushlightuserdata(L, lektra);
             if (lua_pcall(L, 1, 0, 0) != LUA_OK)
-            {                // Handle Lua errors (e.g., print to console)
+            {
                 const char *errorMsg = lua_tostring(L, -1);
                 fprintf(stderr, "Lua error in event callback: %s\n", errorMsg);
-                lua_pop(L, 1); // Remove error message from stack
+                lua_pop(L, 1);
             }
         });
 
-        // Return the callback reference as a handle for potential
-        // unregistration
         lua_pushinteger(L, callbackRef);
-        return 1; // One return value (the handle)
+        return 1;
     }, 1);
 
-    lua_setfield(m_L, -2, "register"); // lektra.event.register
+    lua_setfield(m_L, -2, "register");
 
-    // lektra.event.unregister(handle)
+    // lektra.event.unregister(EventType, handle)
     lua_pushlightuserdata(m_L, this);
     lua_pushcclosure(m_L, [](lua_State *L) -> int
     {
-        const char *eventName = luaL_checkstring(L, 1);
-        luaL_checktype(L, 2, LUA_TFUNCTION);
+        DispatchType type = static_cast<DispatchType>(luaL_checkinteger(L, 1));
+        int handle        = luaL_checkinteger(L, 2);
 
-        int callbackRef = luaL_checkinteger(L, 2);
         auto *self
             = static_cast<Lektra *>(lua_touserdata(L, lua_upvalueindex(1)));
 
-        DispatchType dtype;
-        try
-        {
-            dtype = stringToDispatchType(eventName);
-        }
-        catch (const std::invalid_argument &e)
-        {
-            luaL_error(L, e.what());
-            return 0;
-        }
+        self->removeLuaEventCallback(type, handle);
 
-        // Unregister the callback by removing it from the registry
-        luaL_unref(L, LUA_REGISTRYINDEX, callbackRef);
-
-        int handle = luaL_checkinteger(L, 1);
-
-        self->removeLuaEventCallback(dtype, handle);
-
-        return 0; // No return values
+        return 0;
     }, 1);
 
-    lua_setfield(m_L, -2, "unregister"); // lektra.event.unregister
+    lua_setfield(m_L, -2, "unregister");
 
+    // lektra.event.once(EventType, callback)
     lua_pushlightuserdata(m_L, this);
     lua_pushcclosure(m_L, [](lua_State *L) -> int
     {
-        const char *eventName = luaL_checkstring(L, 1);
+        DispatchType type = static_cast<DispatchType>(luaL_checkinteger(L, 1));
         luaL_checktype(L, 2, LUA_TFUNCTION);
 
-        // Store the callback in the registry with a unique key
         int callbackRef = luaL_ref(L, LUA_REGISTRYINDEX);
 
         auto *self
             = static_cast<Lektra *>(lua_touserdata(L, lua_upvalueindex(1)));
 
-        // Add the callback to our dispatcher map
-        DispatchType dtype;
-        try
+        self->addEventListener(type, callbackRef, true, [L = self->m_L, callbackRef](Lektra *lektra)
         {
-            dtype = stringToDispatchType(eventName);
-        }
-        catch (const std::invalid_argument &e)
-        {
-            luaL_error(L, e.what());
-            return 0;
-        }
-
-        self->addEventListener(dtype, callbackRef, true, [L = self->m_L, callbackRef](Lektra *lektra)
-        {            // Push the callback function onto the stack
             lua_rawgeti(L, LUA_REGISTRYINDEX, callbackRef);
-
-            // Call the function with the Lektra instance as an argument
             lua_pushlightuserdata(L, lektra);
             if (lua_pcall(L, 1, 0, 0) != LUA_OK)
-            {                // Handle Lua errors (e.g., print to console)
+            {
                 const char *errorMsg = lua_tostring(L, -1);
                 fprintf(stderr, "Lua error in event callback: %s\n", errorMsg);
-                lua_pop(L, 1); // Remove error message from stack
+                lua_pop(L, 1);
             }
-
-            // Since this is a "once" callback, we need to unregister it after execution
-            luaL_unref(L, LUA_REGISTRYINDEX, callbackRef);
+            // Ref is freed by dispatchLuaEvent after all once-callbacks fire
         });
 
-        return 0; // No return values
+        lua_pushinteger(L, callbackRef);
+        return 1;
     }, 1);
-    lua_setfield(m_L, -2, "once"); // lektra.event.once
+    lua_setfield(m_L, -2, "once");
 
-    // lektra.event.EventType enum
+    // lektra.event.EventType enum (excludes COUNT sentinel)
     lua_newtable(m_L);
 
-    for (int event = 0; event <= static_cast<int>(DispatchType::COUNT); ++event)
+    for (int event = 0; event < static_cast<int>(DispatchType::COUNT); ++event)
     {
         lua_pushinteger(m_L, event);
         lua_setfield(m_L, -2,
@@ -160,8 +122,7 @@ Lektra::initLuaEventDispatcher() noexcept
     }
     lua_setfield(m_L, -2, "EventType");
 
-    // lektra.event.count(name) -> int
-    // Returns the number of registered callbacks for a given event type
+    // lektra.event.count(EventType) -> int
     lua_pushlightuserdata(m_L, this);
     lua_pushcclosure(m_L, [](lua_State *L) -> int
     {
@@ -185,21 +146,37 @@ Lektra::initLuaEventDispatcher() noexcept
         if (it == self->m_lua_event_dispatcher.end())
         {
             lua_pushinteger(L, 0);
-            return 1; // One return value (the count)
+            return 1;
         }
 
         lua_pushinteger(L, it->second.size());
-        return 1; // One return value (the count)
+        return 1;
     }, 1);
     lua_setfield(m_L, -2, "count");
 
-    lua_setfield(m_L, -2, "event"); // lektra.event
-                                    //
+    lua_setfield(m_L, -2, "event");
 }
 
 void
 Lektra::dispatchLuaEvent(DispatchType type) noexcept
 {
-    for (const auto &callback : m_lua_event_dispatcher[type])
+    // Copy so callbacks can safely call unregister without invalidating iteration
+    auto callbacks = m_lua_event_dispatcher[type];
+    for (const auto &callback : callbacks)
         callback.invoker(this);
+
+    // Remove and free any once-callbacks that just fired
+    auto &live = m_lua_event_dispatcher[type];
+    live.erase(
+        std::remove_if(live.begin(), live.end(),
+                       [this](const LuaCallback<Lektra> &cb)
+                       {
+                           if (cb.is_once)
+                           {
+                               luaL_unref(m_L, LUA_REGISTRYINDEX, cb.ref);
+                               return true;
+                           }
+                           return false;
+                       }),
+        live.end());
 }

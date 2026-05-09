@@ -62,10 +62,10 @@ static const luaL_Reg DocumentViewMethods[] = {
                 {
                     if (*view)
                     {
-                        auto *lektra = static_cast<Lektra *>(
-                            lua_touserdata(L, lua_upvalueindex(1)));
-                        auto filename = luaL_checkstring(L, 2);
-                        lektra->OpenFile(filename);
+                        auto *lektra
+                            = qobject_cast<Lektra *>((*view)->window());
+                        if (lektra)
+                            lektra->OpenFile(luaL_checkstring(L, 2));
                     }
                     return 0;
                 }),
@@ -84,7 +84,7 @@ static const luaL_Reg DocumentViewMethods[] = {
                             = static_cast<int>(luaL_checkinteger(L, 2) - 1);
                         auto x = static_cast<float>(luaL_checknumber(L, 3));
                         auto y = static_cast<float>(luaL_checknumber(L, 4));
-                        (*view)->GotoLocation({pageno - 1, x, y});
+                        (*view)->GotoLocation({pageno, x, y});
                     }
                     return 0;
                 }),
@@ -123,16 +123,10 @@ static const luaL_Reg DocumentViewMethods[] = {
     VIEW_METHOD("zoom",
                 {
                     if (*view)
-                    {
                         lua_pushnumber(L, (*view)->zoom());
-                        return 1;
-                    }
                     else
-                    {
                         lua_pushnil(L);
-                        return 1;
-                    }
-                    return 0;
+                    return 1;
                 }),
 
     VIEW_METHOD("set_zoom",
@@ -173,43 +167,27 @@ static const luaL_Reg DocumentViewMethods[] = {
     VIEW_METHOD("fit",
                 {
                     if (*view)
-                    {
-                        auto fit_mode = (*view)->fitMode();
-                        lua_pushinteger(L, static_cast<int>(fit_mode));
-                    }
+                        lua_pushinteger(L, static_cast<int>((*view)->fitMode()));
                     else
-                    {
                         lua_pushnil(L);
-                    }
-                    return 0;
+                    return 1;
                 }),
 
     VIEW_METHOD("mode",
                 {
                     if (*view)
-                    {
-                        auto mode = (*view)->selectionMode();
-                        lua_pushinteger(L, static_cast<int>(mode));
-                    }
+                        lua_pushinteger(L,
+                                        static_cast<int>((*view)->selectionMode()));
                     else
-                    {
                         lua_pushnil(L);
-                    }
-                    return 0;
+                    return 1;
                 }),
 
     VIEW_METHOD("set_invert",
                 {
                     if (*view)
-                    {
                         (*view)->setInvertColor(lua_toboolean(L, 2));
-                        return 1;
-                    }
-                    else
-                    {
-                        lua_pushnil(L);
-                        return 1;
-                    }
+                    return 0;
                 }),
 
     VIEW_METHOD("is_modified",
@@ -242,15 +220,7 @@ static const luaL_Reg DocumentViewMethods[] = {
 
     VIEW_METHOD("set_mode",
                 {
-                    if (*view)
-                    {
-                        // TODO
-                    }
-                    else
-                    {
-                        lua_pushnil(L);
-                    }
-                    return 0;
+                    return luaL_error(L, "set_mode: not yet implemented");
                 }),
 
     VIEW_METHOD("rotation",
@@ -281,15 +251,11 @@ static const luaL_Reg DocumentViewMethods[] = {
     VIEW_METHOD("layout",
                 {
                     if (*view)
-                    {
-                        auto layout_mode = (*view)->layoutMode();
-                        lua_pushinteger(L, static_cast<int>(layout_mode));
-                    }
+                        lua_pushinteger(L,
+                                        static_cast<int>((*view)->layoutMode()));
                     else
-                    {
                         lua_pushnil(L);
-                    }
-                    return 0;
+                    return 1;
                 }),
 
     VIEW_METHOD(
@@ -843,10 +809,7 @@ static const luaL_Reg DocumentViewMethods[] = {
 
     VIEW_METHOD("save_as",
                 {
-                    if (*view)
-                    {
-                    }
-                    return 0;
+                    return luaL_error(L, "save_as: not yet implemented");
                 }),
     VIEW_METHOD("extract_text",
                 {

@@ -1612,6 +1612,10 @@ Lektra::setupKeybinding(const QString &action, const QStringList &keys) noexcept
 
     m_config.keybinds.remove(action);
 
+    // Fetch all shortcuts once — re-fetching inside the keys loop would do a
+    // full child-tree traversal per key. We remove deleted entries in-place so
+    // future key iterations never touch a dangling pointer.
+    auto allShortcuts = findChildren<QShortcut *>();
     for (const QString &key : keys)
     {
         if (key.isEmpty())
@@ -1623,9 +1627,9 @@ Lektra::setupKeybinding(const QString &action, const QStringList &keys) noexcept
         if (newSeqNormalized.isEmpty())
             continue;
 
-        const auto allShortcuts = findChildren<QShortcut *>();
-        for (QShortcut *s : allShortcuts)
+        for (int i = allShortcuts.size() - 1; i >= 0; --i)
         {
+            QShortcut *s = allShortcuts[i];
             if (s->objectName() == action)
                 continue;
 
@@ -1636,6 +1640,7 @@ Lektra::setupKeybinding(const QString &action, const QStringList &keys) noexcept
 
             const QString otherAction = s->objectName();
             delete s;
+            allShortcuts.removeAt(i);
             auto &otherKeys = m_config.keybinds[otherAction];
             otherKeys.removeAll(key);
             if (otherKeys.isEmpty())
@@ -4235,8 +4240,9 @@ Lektra::getSessionFiles() noexcept
         }
     }
 
+    static const QStringList jsonFilter = {"*.json"};
     for (const QString &file : m_session_dir.entryList(
-             QStringList() << "*.json", QDir::Files | QDir::NoSymLinks))
+             jsonFilter, QDir::Files | QDir::NoSymLinks))
         sessions << QFileInfo(file).completeBaseName();
 
     return sessions;

@@ -743,7 +743,9 @@ DocumentView::handleSearchResults(
     m_search_hits = results;
     buildFlatSearchHitIndex();
 
-    m_search_index = 0;
+    m_search_index         = 0;
+    m_cached_hit_index     = -2;
+    m_cached_hit_page_item = nullptr;
 
     if (m_config.scrollbars.search_hits)
         renderSearchHitsInScrollbar();
@@ -1578,7 +1580,7 @@ DocumentView::GotoLocation(const PageLocation &targetLocation) noexcept
     GraphicsImageItem *pageItem = m_page_items_hash[sanitized.pageno];
     if (!pageItem)
         return;
-    if (pageItem->data(0).toString() == "placeholder_page")
+    if (m_placeholder_pages.contains(sanitized.pageno))
     {
         m_pending_jump = sanitized;
         GotoPage(sanitized.pageno);
@@ -1736,7 +1738,9 @@ DocumentView::clearSearchHits() noexcept
         if (item && item->scene() == m_gscene)
             item->setPath(QPainterPath()); // clear instead of delete
     }
-    m_search_index = -1;
+    m_search_index         = -1;
+    m_cached_hit_index     = -2;
+    m_cached_hit_page_item = nullptr;
     m_search_items.clear();
     m_search_hits.clear();
     m_search_hit_flat_refs.clear();
@@ -1895,8 +1899,10 @@ DocumentView::GotoHit(int index) noexcept
         index = 0;
 
     const HitRef ref  = m_search_hit_flat_refs[index];
-    m_search_index    = index;
-    m_pageno          = ref.page;
+    m_search_index         = index;
+    m_cached_hit_index     = -2;
+    m_cached_hit_page_item = nullptr;
+    m_pageno               = ref.page;
     const auto &hit   = m_search_hits[ref.page][ref.indexInPage];
     const float scale = m_model->logicalScale();
 
@@ -1955,8 +1961,7 @@ DocumentView::GotoHit(int index) noexcept
     // If the page is already rendered, the render callback won't reliably
     // fire for this hit — update the highlight immediately.
     if (m_page_items_hash.contains(ref.page)
-        && m_page_items_hash[ref.page]->data(0).toString()
-               != "placeholder_page")
+        && !m_placeholder_pages.contains(ref.page))
     {
         m_scroll_to_hit_pending = false;
         updateCurrentHitHighlight();
@@ -2807,7 +2812,7 @@ DocumentView::renderPages() noexcept
 
         // Preload pages
         for (int pageno : preloadPages)
-            requestPageRender(pageno);
+            requestPageRender(pageno, false, false);
 
         updateSceneRect();
     }
@@ -2903,9 +2908,9 @@ DocumentView::renderPage() noexcept
         if (m_page_items_hash.contains(m_pageno))
         {
             GraphicsImageItem *item = m_page_items_hash[m_pageno];
-            if (item->data(0).toString() == QStringLiteral("preload_page"))
+            if (m_preload_pages.contains(m_pageno))
             {
-                item->setData(0, QVariant()); // clear tag
+                m_preload_pages.remove(m_pageno);
                 item->show();
                 updateSceneRect();
                 m_gscene->blockSignals(false);
@@ -2933,37 +2938,18 @@ DocumentView::startNextRenderJob() noexcept
 
 #ifndef NDEBUG
     qDebug() << "DocumentView::startNextRenderJob(): Queue size: "
-             << m_render_queue.size();
+             << (m_visible_render_queue.size() + m_render_queue.size());
 #endif
 
-    // Get current visible pages for prioritization
-    const std::set<int> &visiblePages = getVisiblePages();
-
-    while (!m_render_queue.isEmpty())
+    while (!m_visible_render_queue.isEmpty() || !m_render_queue.isEmpty())
     {
-        // Prioritize visible pages first
-        int pageno = -1;
-        for (int i = 0; i < m_render_queue.size(); ++i)
-        {
-            int candidate = m_render_queue[i];
-            if (visiblePages.contains(candidate))
-            {
-                pageno = candidate;
-                m_render_queue.removeAt(i);
-                break;
-            }
-        }
-
-        // If no visible pages in queue, take the next one
-        if (pageno == -1)
-            pageno = m_render_queue.dequeue();
+        // Visible-page queue is always drained first; fall back to preload queue
+        int pageno = (!m_visible_render_queue.isEmpty())
+                         ? m_visible_render_queue.dequeue()
+                         : m_render_queue.dequeue();
 
         if (!m_pending_renders.contains(pageno))
             continue;
-
-        // pageno = m_render_queue.dequeue();
-        // if (!m_pending_renders.contains(pageno))
-        //     continue;
 
         auto job = m_model->createRenderJob(pageno);
 
@@ -2990,11 +2976,10 @@ DocumentView::startNextRenderJob() noexcept
                     view->setUpdatesEnabled(false);
                     {
                         view->renderPageFromImage(pageno, image);
-                        // tag it as preload and hide it
+                        // Mark as preload and hide it for instant display later
                         if (view->m_page_items_hash.contains(pageno))
                         {
-                            view->m_page_items_hash[pageno]->setData(
-                                0, QStringLiteral("preload_page"));
+                            view->m_preload_pages.insert(pageno);
                             view->m_page_items_hash[pageno]->hide();
                         }
                     }
@@ -3057,17 +3042,19 @@ DocumentView::prunePendingRenders(const std::set<int> &visiblePages) noexcept
     for (auto it = m_pending_renders.begin(); it != m_pending_renders.end();)
         it = visiblePages.count(*it) ? ++it : m_pending_renders.erase(it);
 
-    if (m_render_queue.isEmpty())
-        return;
-
-    QQueue<int> filtered;
-    while (!m_render_queue.isEmpty())
+    auto filterQueue = [&](QQueue<int> &q)
     {
-        const int pageno = m_render_queue.dequeue();
-        if (visiblePages.contains(pageno))
-            filtered.enqueue(pageno);
-    }
-    m_render_queue = std::move(filtered);
+        QQueue<int> filtered;
+        while (!q.isEmpty())
+        {
+            const int p = q.dequeue();
+            if (visiblePages.contains(p))
+                filtered.enqueue(p);
+        }
+        q = std::move(filtered);
+    };
+    filterQueue(m_visible_render_queue);
+    filterQueue(m_render_queue);
 }
 
 // void
@@ -3098,10 +3085,13 @@ DocumentView::prunePendingRenders(const std::set<int> &visiblePages) noexcept
 void
 DocumentView::removeUnusedPageItems(const std::set<int> &visibleSet) noexcept
 {
-    // Copy keys first to avoid iterator invalidation
-    const QList<int> trackedPages = m_page_items_hash.keys();
-    for (int pageno : trackedPages)
+    std::vector<int> toRemove;
+    for (auto it = m_page_items_hash.cbegin(); it != m_page_items_hash.cend();
+         ++it)
     {
+        const int pageno  = it.key();
+        auto *item        = it.value();
+
         if (visibleSet.count(pageno))
             continue;
 
@@ -3109,26 +3099,28 @@ DocumentView::removeUnusedPageItems(const std::set<int> &visibleSet) noexcept
         clearAnnotationsForPage(pageno);
         clearSearchItemsForPage(pageno);
 
-        auto *item = m_page_items_hash.value(pageno, nullptr);
         if (!item)
+        {
+            toRemove.push_back(pageno);
             continue;
+        }
 
-        const QString tag = item->data(0).toString();
-
-        // Keep placeholders to avoid flicker during fast scroll; only
-        // remove actual rendered pages. For placeholders, just hide them so
-        // they don't cause repaints but remain ready to be replaced when
-        // rendering finishes.
-        if (tag == "placeholder_page" || tag == "scroll_placeholder")
+        // Keep placeholders to avoid flicker during fast scroll — hide so
+        // they don't repaint but remain ready when rendering finishes.
+        if (m_placeholder_pages.contains(pageno))
         {
             if (item->scene() == m_gscene)
                 item->hide();
             continue;
         }
 
-        // Remove and delete real page item
-        m_page_items_hash.remove(pageno);
-        if (item->scene() == m_gscene)
+        toRemove.push_back(pageno);
+    }
+    for (int pageno : toRemove)
+    {
+        auto *item = m_page_items_hash.take(pageno);
+        m_preload_pages.remove(pageno);
+        if (item && item->scene() == m_gscene)
             m_gscene->removeItem(item);
         delete item;
     }
@@ -3141,6 +3133,8 @@ DocumentView::removePageItem(int pageno) noexcept
     if (m_page_items_hash.contains(pageno))
     {
         GraphicsImageItem *item = m_page_items_hash.take(pageno);
+        m_placeholder_pages.remove(pageno);
+        m_preload_pages.remove(pageno);
         if (item && item->scene() == m_gscene)
             m_gscene->removeItem(item);
         delete item;
@@ -3498,6 +3492,8 @@ DocumentView::clearVisiblePages() noexcept
             m_gscene->removeItem(item);
     }
     m_page_items_hash.clear();
+    m_placeholder_pages.clear();
+    m_preload_pages.clear();
 }
 
 void
@@ -3505,16 +3501,17 @@ DocumentView::clearVisibleLinks() noexcept
 {
     if (!m_model->supports_links())
         return;
-    QList<int> trackedPages = m_page_links_hash.keys();
-    for (int pageno : trackedPages)
+    for (auto it = m_page_links_hash.begin(); it != m_page_links_hash.end();
+         ++it)
     {
-        for (auto *link : m_page_links_hash.take(pageno))
+        for (auto *link : it.value())
         {
             if (link->scene() == m_gscene)
                 m_gscene->removeItem(link);
-            delete link; // only if you own the memory
+            delete link;
         }
     }
+    m_page_links_hash.clear();
 }
 
 void
@@ -3522,16 +3519,17 @@ DocumentView::clearVisibleAnnotations() noexcept
 {
     if (!m_model->supports_annotations())
         return;
-    QList<int> trackedPages = m_page_annotations_hash.keys();
-    for (int pageno : trackedPages)
+    for (auto it = m_page_annotations_hash.begin();
+         it != m_page_annotations_hash.end(); ++it)
     {
-        for (auto *annot : m_page_annotations_hash.take(pageno))
+        for (auto *annot : it.value())
         {
             if (annot->scene() == m_gscene)
                 m_gscene->removeItem(annot);
-            delete annot; // only if you own the memory
+            delete annot;
         }
     }
+    m_page_annotations_hash.clear();
 }
 
 void
@@ -3666,16 +3664,29 @@ DocumentView::updateCurrentHitHighlight() noexcept
         return;
     }
 
-    const float scale = m_model->logicalScale();
-    const HitRef ref  = m_search_hit_flat_refs[m_search_index];
-    const auto &hit   = m_search_hits[ref.page][ref.indexInPage];
+    const HitRef ref = m_search_hit_flat_refs[m_search_index];
 
     GraphicsImageItem *pageItem = m_page_items_hash.value(ref.page, nullptr);
     if (!pageItem || !pageItem->scene())
     {
         m_current_search_hit_item->setPath(QPainterPath());
+        m_cached_hit_index     = -2;
+        m_cached_hit_page_item = nullptr;
         return;
     }
+
+    // Skip recomputation if nothing has changed since the last call.
+    // pageItem pointer changes on re-render or zoom (new item created), so this
+    // correctly invalidates when the transform may have changed.
+    if (m_search_index == m_cached_hit_index
+        && pageItem == m_cached_hit_page_item)
+        return;
+
+    m_cached_hit_index     = m_search_index;
+    m_cached_hit_page_item = pageItem;
+
+    const float scale    = m_model->logicalScale();
+    const auto &hit      = m_search_hits[ref.page][ref.indexInPage];
 
     QPolygonF poly;
     poly.reserve(4);
@@ -3685,9 +3696,7 @@ DocumentView::updateCurrentHitHighlight() noexcept
          << QPointF(hit.quad.ll.x * scale, hit.quad.ll.y * scale);
 
     QPainterPath path;
-    const QTransform toScene = pageItem->sceneTransform();
-
-    path.addPolygon(toScene.map(poly));
+    path.addPolygon(pageItem->sceneTransform().map(poly));
 
     m_current_search_hit_item->setPath(path);
 }
@@ -3802,7 +3811,10 @@ DocumentView::clearDocumentItems() noexcept
     m_page_items_hash.clear();
     m_search_items.clear();
     m_pending_renders.clear();
+    m_visible_render_queue.clear();
     m_render_queue.clear();
+    m_placeholder_pages.clear();
+    m_preload_pages.clear();
 
     // Remove all items from scene EXCEPT the persistent ones
     // (selection path, search hit, etc.)
@@ -3823,7 +3835,7 @@ DocumentView::clearDocumentItems() noexcept
 
 // Request rendering of a specific page (ASYNC)
 void
-DocumentView::requestPageRender(int pageno, bool force) noexcept
+DocumentView::requestPageRender(int pageno, bool force, bool visible) noexcept
 {
     if (!force && m_pending_renders.contains(pageno))
         return;
@@ -3835,7 +3847,10 @@ DocumentView::requestPageRender(int pageno, bool force) noexcept
 #endif
 
     m_pending_renders.insert(pageno);
-    m_render_queue.enqueue(pageno);
+    if (visible)
+        m_visible_render_queue.enqueue(pageno);
+    else
+        m_render_queue.enqueue(pageno);
     createAndAddPlaceholderPageItem(pageno);
     startNextRenderJob();
 }
@@ -3863,6 +3878,9 @@ DocumentView::renderPageFromImage(int pageno, const QImage &image) noexcept
         }
         m_page_items_hash.remove(pageno);
     }
+
+    // New item pointer will differ from the cached one — force one recompute.
+    m_cached_hit_page_item = nullptr;
 
     createAndAddPageItem(pageno, image);
     clearLinksForPage(pageno);
@@ -3915,7 +3933,7 @@ DocumentView::createAndAddPlaceholderPageItem(int pageno) noexcept
 
     m_gscene->addItem(pageItem);
     m_page_items_hash[pageno] = pageItem;
-    pageItem->setData(0, QStringLiteral("placeholder_page"));
+    m_placeholder_pages.insert(pageno);
 }
 
 void
@@ -3959,6 +3977,8 @@ DocumentView::createAndAddPageItem(int pageno, const QImage &img) noexcept
 
     m_gscene->addItem(pageItem);
     m_page_items_hash[pageno] = pageItem;
+    m_placeholder_pages.remove(pageno);
+    m_preload_pages.remove(pageno);
 }
 
 void
@@ -5063,8 +5083,7 @@ DocumentView::repositionPages()
         if (!item)
             continue;
 
-        const bool isPlaceholder
-            = (item->data(0).toString() == "placeholder_page");
+        const bool isPlaceholder = m_placeholder_pages.contains(i);
 
         double pageWidthScene  = 0.0;
         double pageHeightScene = 0.0;
@@ -5196,6 +5215,7 @@ void
 DocumentView::stopPendingRenders() noexcept
 {
     m_pending_renders.clear();
+    m_visible_render_queue.clear();
     m_render_queue.clear();
 
     if (m_model)

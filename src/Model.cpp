@@ -194,10 +194,7 @@ find_closest_in_page(fz_stext_page *page, fz_point q)
              line                = line->next)
         {
             if (!line->first_char)
-            {
-                idx += line_length(line);
                 continue;
-            }
 
             const float hsize   = largest_size_in_line(line) / 2;
             const fz_point hdir = line->dir;
@@ -2686,12 +2683,13 @@ Model::renderPageWithExtrasAsync(const RenderJob &job) noexcept
         result.image = image;
 
         // --- Extract links ---
+        const float scale = m_inv_dpr;
+        result.links.reserve(links.size());
         for (const auto &link : links)
         {
             if (link.uri.isEmpty())
                 continue;
-            fz_rect r         = fz_transform_rect(link.rect, transform);
-            const float scale = m_inv_dpr;
+            fz_rect r = fz_transform_rect(link.rect, transform);
             QRectF qtRect(r.x0 * scale, r.y0 * scale, (r.x1 - r.x0) * scale,
                           (r.y1 - r.y0) * scale);
 
@@ -2818,12 +2816,12 @@ Model::renderPageWithExtrasAsync(const RenderJob &job) noexcept
         //     }
         // }
 
+        result.annotations.reserve(annotations.size());
         for (const auto &annot : annotations)
         {
             RenderAnnotation renderAnnot;
 
-            fz_rect r         = fz_transform_rect(annot.rect, transform);
-            const float scale = m_inv_dpr;
+            fz_rect r = fz_transform_rect(annot.rect, transform);
             QRectF qtRect(r.x0 * scale, r.y0 * scale, (r.x1 - r.x0) * scale,
                           (r.y1 - r.y0) * scale);
             renderAnnot.rect  = qtRect;
@@ -3862,7 +3860,6 @@ Model::collectHighlightTexts(bool groupByLine) noexcept
 
             stext_page = fz_new_stext_page_from_page(m_ctx, (fz_page *)pdfPage,
                                                      nullptr);
-
             if (!stext_page)
                 continue;
 

@@ -8,28 +8,20 @@ Lektra::executeLuaCode(const QString &code) noexcept
     if (!m_L)
         return;
 
-    // Get the output of the Lua code execution
-    lua_pushcfunction(m_L, [](lua_State *L) -> int
-    {
-        const char *output = lua_tostring(L, 1);
-        if (output)
-        {
-            qDebug() << "Lua Output:" << output;
-        }
-        return 0;
-    });
+    const int base = lua_gettop(m_L);
+    const QByteArray codeUtf8 = code.toUtf8();
 
-    if (luaL_loadstring(m_L, code.toStdString().c_str()) != LUA_OK)
+    if (luaL_loadstring(m_L, codeUtf8.constData()) != LUA_OK)
     {
         qWarning() << "Failed to load Lua code:" << lua_tostring(m_L, -1);
-        lua_pop(m_L, 1); // Remove error message from stack
+        lua_settop(m_L, base);
         return;
     }
 
-    if (lua_pcall(m_L, 0, 0, -2) != LUA_OK)
+    if (lua_pcall(m_L, 0, 0, 0) != LUA_OK)
     {
         qWarning() << "Failed to execute Lua code:" << lua_tostring(m_L, -1);
-        lua_pop(m_L, 1); // Remove error message from stack
+        lua_settop(m_L, base);
     }
 }
 

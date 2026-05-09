@@ -522,7 +522,8 @@ private:
 
     void initGui() noexcept;
     void setModified(bool state) noexcept;
-    void requestPageRender(int pageno, bool force = false) noexcept;
+    void requestPageRender(int pageno, bool force = false,
+                           bool visible = true) noexcept;
     void startNextRenderJob() noexcept;
     void clearLinksForPage(int pageno) noexcept;
     void clearAnnotationsForPage(int pageno) noexcept;
@@ -601,6 +602,8 @@ private:
     QTimer *m_resize_timer                   = nullptr;
     PageLocation m_pending_jump              = {-1, 0, 0};
     int m_search_index                       = -1;
+    int m_cached_hit_index                   = -2;
+    GraphicsImageItem *m_cached_hit_page_item = nullptr;
     int m_selection_start_page               = -1;
     int m_selection_end_page                 = -1;
     int m_last_selection_page                = -1;
@@ -643,7 +646,10 @@ private:
     QHash<int, std::vector<BrowseLinkItem *>> m_page_links_hash;
     QHash<int, std::vector<Annotation *>> m_page_annotations_hash;
     QSet<int> m_pending_renders;
+    QQueue<int> m_visible_render_queue;
     QQueue<int> m_render_queue;
+    QSet<int> m_placeholder_pages;
+    QSet<int> m_preload_pages;
     QMap<int, std::vector<Model::SearchHit>> m_search_hits;
     std::vector<HitRef> m_search_hit_flat_refs;
     QHash<int, QGraphicsPathItem *> m_search_items;

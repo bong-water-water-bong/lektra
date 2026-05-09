@@ -21,8 +21,7 @@ class TabBar : public QTabBar
 public:
     explicit TabBar(QWidget *parent = nullptr);
 
-    static inline std::atomic<bool> s_drop_accepted = false;
-    static constexpr const char *MIME_TYPE          = "application/lektra-tab";
+    static constexpr const char *MIME_TYPE = "application/lektra-tab";
 
     struct TabData
     {

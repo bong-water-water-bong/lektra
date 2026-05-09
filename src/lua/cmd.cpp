@@ -59,23 +59,30 @@ Lektra::initLuaCmd() noexcept
         auto *lektra
             = static_cast<Lektra *>(lua_touserdata(L, lua_upvalueindex(1)));
 
-        lektra->commandManager()->reg(name, desc,
-                                      [L, func_ref](const QStringList &args)
+        // Guard ensures luaL_unref is called when the command is removed
+        struct LuaRefGuard
         {
-            lua_rawgeti(L, LUA_REGISTRYINDEX, func_ref);
-            lua_newtable(L);
+            lua_State *L;
+            int ref;
+            ~LuaRefGuard() { luaL_unref(L, LUA_REGISTRYINDEX, ref); }
+        };
+        auto guard = std::make_shared<LuaRefGuard>(LuaRefGuard{L, func_ref});
+
+        lektra->commandManager()->reg(name, desc,
+                                      [guard](const QStringList &args)
+        {
+            lua_rawgeti(guard->L, LUA_REGISTRYINDEX, guard->ref);
+            lua_newtable(guard->L);
             int i = 1;
             for (const auto &arg : args)
             {
-                lua_pushstring(
-                    L,
-                    arg.toUtf8().constData()); // BUG FIX: toStdString()
-                lua_rawseti(L, -2, i++);       // + c_str() is an
-            } // unnecessary roundtrip
-            if (lua_pcall(L, 1, 0, 0) != LUA_OK)
+                lua_pushstring(guard->L, arg.toUtf8().constData());
+                lua_rawseti(guard->L, -2, i++);
+            }
+            if (lua_pcall(guard->L, 1, 0, 0) != LUA_OK)
             {
-                qWarning() << "register error:" << lua_tostring(L, -1);
-                lua_pop(L, 1);
+                qWarning() << "register error:" << lua_tostring(guard->L, -1);
+                lua_pop(guard->L, 1);
             }
         });
         return 0;
