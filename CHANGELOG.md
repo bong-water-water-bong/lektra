@@ -17,6 +17,10 @@
         - `lektra.keymap` - for managing keybindings
         - `lektra.mousemap` - for managing mousebindings
         - `lektra.utils` - for utility functions
+        - `lektra.version` - for version functions
+        - `lektra.capabilities` - for querying about compiled options
+        - `lektra.bookmarks` - for managing bookmarks
+
     - Check [LUA-WIKI.md](LUA-WIKI.md) for more details and examples of the lua scripting support in LEKTRA.
 
 - Vim/Emacs like search hit indexing navigation if `absolute_jump = false` in `[search]`
