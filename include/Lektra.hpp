@@ -450,6 +450,9 @@ private:
 
     void initLua() noexcept;
 
+    // lektra
+    void initLuaLektra() noexcept;
+
     // lektra.opt
     void initLuaOpt() noexcept;
 
@@ -479,6 +482,9 @@ private:
 
     // lektra.utils
     void initLuaUtils() noexcept;
+
+    // lektra.bookmark
+    void initLuaBookmarks() noexcept;
 
     bool removeLuaEventCallback(DispatchType type, int callbackRef) noexcept;
     void dispatchLuaEvent(DispatchType type) noexcept;
