@@ -49,6 +49,76 @@
 - Fix synctex initialisation
 - Fix synctex optional macro in the source code `HAS_SYNCTEX` -> `WITH_SYNCTEX`
 - Fix image zoom anchoring
+- `lua/Lektra.cpp`: Fix stack leak in `executeLuaCode` — the message-handler function was
+  pushed before `luaL_loadstring` but never popped, growing the Lua stack by one slot on
+  every call. Replaced with `lua_settop` save/restore and removed the broken handler
+  (which returned 0 instead of the required 1 value). Also fixed `toStdString().c_str()`
+  to a stable `QByteArray` local.
+- `lua/view.cpp`: Fix `open` method reading `lua_upvalueindex(1)` with zero upvalues —
+  caused undefined behaviour/crash. Now resolves the `Lektra` instance via
+  `qobject_cast<Lektra*>((*view)->window())`.
+- `lua/view.cpp`: Fix `fit`, `mode`, and `layout` getter methods returning `0` (no values)
+  after pushing a value onto the stack — callers received garbage. Changed to `return 1`.
+- `lua/view.cpp`: Fix `goto_location` applying a page-index offset twice: `pageno` was
+  already converted to 0-based, then subtracted again before passing to `GotoLocation`,
+  sending page 1 to index −1.
+- `lua/view.cpp`: Fix `zoom` containing unreachable `return 0` after `return 1` in both
+  branches. Collapsed to a single push + `return 1`.
+- `lua/view.cpp`: Fix `set_invert` returning 1 in the success branch without pushing
+  anything — now returns 0 (setter, no return value).
+- `lua/view.cpp`: Replace empty stub bodies in `set_mode` and `save_as` with
+  `luaL_error` so callers get a clear error instead of silent no-ops.
+- `lua/event.cpp`: Fix `unregister` API mismatch — it expected `(string, int)` but
+  `register` returns only an `int` handle. Unified to `(EventType, handle)` matching the
+  `register` signature.
+- `lua/event.cpp`: Fix `once` taking a string event name while `register` takes an integer
+  `EventType`. Both now use integer `EventType` for consistency.
+- `lua/event.cpp`: Fix `COUNT` sentinel exposed in the `lektra.event.EventType` Lua table
+  due to an off-by-one `<=` in the population loop. Changed to `<`.
+- `lua/event.cpp`: Fix `once` callbacks never being removed — `is_once` flag was set but
+  `dispatchLuaEvent` never checked it, so the callback would fire on every subsequent
+  dispatch (pushing nil after the first unref). Moved cleanup into `dispatchLuaEvent`
+  using an erase-remove pass after invocation.
+- `lua/event.cpp`: Fix iterator invalidation in `dispatchLuaEvent` — callbacks could call
+  `unregister` during iteration. Now iterates over a local copy of the callback list.
+- `lua/cmd.cpp`: Fix Lua registry reference leak on command unregister — `func_ref` was
+  captured in the action lambda but `luaL_unref` was never called when the command was
+  removed. Wrapped in a `shared_ptr` guard whose destructor calls `luaL_unref`.
+- `include/DispatchType.hpp`: Fix duplicate `OnPageChanged` key in the dispatch map —
+  the second entry silently overwrote the first in `QHash`.
+- `include/DispatchType.hpp`: Rename reserved identifier `__dispatchEventMap` (double
+  leading underscore is reserved by the C++ standard) to `s_dispatchEventMap`.
+- `include/DispatchType.hpp`: Replace O(n) linear scan in `dispatchTypeToString` with an
+  O(1) static array indexed by enum value.
+
+### Performance
+
+- `DocumentView.cpp`: Replace `QGraphicsItem::data(0).toString()` tag checks with `QSet<int>`
+  membership tests (`m_placeholder_pages`, `m_preload_pages`) eliminating repeated
+  `QVariant`→`QString` conversions in hot loops inside `removeUnusedPageItems`,
+  `repositionPages`, and `renderPages`.
+- `DocumentView.cpp`: Split the single render queue into a visible-page queue and a preload
+  queue so `startNextRenderJob` dequeues in O(1) instead of doing an O(n) linear scan with
+  an O(n) `removeAt` to find the next visible page to render.
+- `DocumentView.cpp`: Eliminate `QHash::keys()` heap copies in `removeUnusedPageItems`,
+  `clearVisibleLinks`, and `clearVisibleAnnotations`; replaced with direct iteration or a
+  two-pass collect-then-delete approach.
+- `DocumentView.cpp`: Cache the last rendered search-hit state (`index` + page-item pointer)
+  in `updateCurrentHitHighlight` so the path is only recomputed when the hit or page item
+  actually changes, avoiding redundant `QPainterPath` rebuilds on every scroll event.
+- `Model.cpp`: Skip redundant `line_length()` traversal in `find_closest_in_page` for lines
+  with no characters — the call always returned 0 so the `idx` increment was a no-op.
+- `Model.cpp`: Hoist `m_inv_dpr` scale constant out of the per-link and per-annotation render
+  loops in `renderPageWithExtrasAsync`; add `reserve` on `result.links` and
+  `result.annotations` before those loops to avoid reallocation churn on pages with many
+  links or annotations.
+- `Lektra.cpp`: Hoist `findChildren<QShortcut *>()` out of the per-key loop in
+  `setupKeybinding` — was performing a full child-object tree traversal once per key;
+  now called once before the loop with deleted entries removed in-place to avoid dangling
+  pointers.
+- `Lektra.cpp`: Replace the temporary `QStringList() << "*.json"` filter construction in
+  `getSessionFiles` with a `static const QStringList`, eliminating a heap allocation on
+  every call.
 
 ### Breaking Changes
 
