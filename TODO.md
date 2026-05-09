@@ -4,8 +4,7 @@
 
 ## HIGH PRIORITY
 
-- [ ] Fit mode for rotated images
-- [ ] Export highlight annotations
+- [ ] Export highlight annotations (lua api)
 - [ ] Allow for command arguments
 - [ ] Allow opening multiple files from the file dialog
 - [ ] Render large gifs quickly and efficiently
@@ -17,9 +16,7 @@
 - [ ] Don't hide scrollbars when search hits have been drawn
 - [ ] Grow/Shrink splitter handle when hovering over it for easy dragging
 - [ ] Show visually, and identifier for split files (if they remain as original file) next to their name. Maybe, a numbered gutter badge, small [1], [2] badge in the corner of each split — same number means same file. Simple and non-intrusive.
-- [ ] Statusbar don't show info for thumbnail panel
 - [ ] Mult-click drag select word, line, paragraph, etc. based on number of clicks before dragging
-- [ ] Scissor mode for cropping and copying specific regions of the PDF when zoomed in to a high level (high performance gain)
 - [ ] Text selection change pos on resize event
 - [ ] Picker strong key grab
 - [ ] History for pickers
