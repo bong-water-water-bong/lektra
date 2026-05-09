@@ -61,8 +61,8 @@ lektra.tabs.count = function() end
 ---@return Tab
 lektra.tabs.current = function() end
 
---- Returns a table of {index, title} for each tab
---- @return {id: integer, title: string}[]
+--- Returns a table of tab objects
+--- @return Tab[] tabs List of Tab objects
 lektra.tabs.list = function() end
 
 --- Returns the stable unique identifier for a tab index (0-based).

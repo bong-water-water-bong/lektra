@@ -287,6 +287,11 @@ function View:is_thumbnail_view() end
 --- Returns the Container object associated with the view.
 ---@return Container container The container object associated with the view, which provides access to the underlying document and rendering context.
 function View:container() end
+
+--- Returns the outline of the document (if it exists)
+---@return string[] table
+function View:outline() end
+
 -- ##########################################
 
 

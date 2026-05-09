@@ -10,3 +10,8 @@ lektra.utils.print = function (...) end
 --- Opens the specified URL in the user's default web browser.
 ---@param url string The URL to open
 lektra.utils.open_url = function (url) end
+
+--- Returns the operating system platform name
+---@return string platform Can be one of "linux" | "windows" | "macos" | "unknown"
+lektra.utils.platform = function () end
+
