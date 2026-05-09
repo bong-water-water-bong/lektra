@@ -156,8 +156,6 @@ public:
         return m_model->m_filetype;
     }
 
-    void setDPR(float dpr) noexcept;
-
     inline QString fileName() const noexcept
     {
         return QFileInfo(m_model->filePath()).fileName();
@@ -292,9 +290,6 @@ public:
                 && m_selection_end_page >= 0);
     }
 
-    QString selectionText(bool formatted             = false,
-                          std::string page_separator = "\n") const noexcept;
-
     inline QString extractText(bool formatted) const noexcept
     {
         return QString::fromStdString(
@@ -314,8 +309,6 @@ public:
         m_lua_event_dispatcher[type].clear();
     }
 
-    void removeEventListener(DispatchType type, int handle) noexcept;
-
     enum class ContextMenuType
     {
         TextSelection = 0,
@@ -331,8 +324,9 @@ public:
         bool is_once = false;
     };
 
-    void addContextMenuListener(ContextMenuType type, int handle, bool is_once,
-                                MenuCallbackFn callback) noexcept
+    inline void addContextMenuListener(ContextMenuType type, int handle,
+                                       bool is_once,
+                                       MenuCallbackFn callback) noexcept
     {
         m_lua_context_menu_dispatcher[type].push_back(
             {.ref = handle, .invoker = callback, .is_once = is_once});
@@ -343,6 +337,11 @@ public:
         m_lua_context_menu_dispatcher[type].clear();
     }
 
+    void setAutoReload(bool state) noexcept;
+    void setDPR(float dpr) noexcept;
+    QString selectionText(bool formatted             = false,
+                          std::string page_separator = "\n") const noexcept;
+    void removeEventListener(DispatchType type, int handle) noexcept;
     void removeContextMenuListener(ContextMenuType type, int handle) noexcept;
 #endif
 
@@ -515,7 +514,6 @@ private:
     void CopyRegionAsImage(QRectF area) noexcept;
     void SaveRegionAsImage(QRectF area) noexcept;
     void OpenRegionInExternalViewer(QRectF area) noexcept;
-    void setAutoReload(bool state) noexcept;
     bool waitUntilReadableAsync() noexcept;
     void onFileReloadRequested(const QString &path) noexcept;
     void tryReloadLater(int attempt) noexcept;
@@ -585,49 +583,49 @@ private:
 #endif
 
     const Config &m_config;
-    Id m_id                                  = 0;
-    Model *m_model                           = nullptr;
-    GraphicsView *m_gview                    = nullptr;
-    GraphicsScene *m_gscene                  = nullptr;
-    FitMode m_fit_mode                       = FitMode::COUNT;
-    int m_pageno                             = -1;
-    double m_spacing                         = 10.0f;
-    double m_current_zoom                    = MIN_ZOOM_FACTOR;
-    bool m_auto_resize                       = false;
-    bool m_auto_reload                       = false;
-    ScrollBar *m_hscroll                     = nullptr;
-    ScrollBar *m_vscroll                     = nullptr;
-    JumpMarker *m_jump_marker                = nullptr;
-    QTimer *m_scroll_page_update_timer       = nullptr;
-    QTimer *m_resize_timer                   = nullptr;
-    PageLocation m_pending_jump              = {-1, 0, 0};
-    int m_search_index                       = -1;
-    int m_cached_hit_index                   = -2;
+    Id m_id                                   = 0;
+    Model *m_model                            = nullptr;
+    GraphicsView *m_gview                     = nullptr;
+    GraphicsScene *m_gscene                   = nullptr;
+    FitMode m_fit_mode                        = FitMode::COUNT;
+    int m_pageno                              = -1;
+    double m_spacing                          = 10.0f;
+    double m_current_zoom                     = MIN_ZOOM_FACTOR;
+    bool m_auto_resize                        = false;
+    bool m_auto_reload                        = false;
+    ScrollBar *m_hscroll                      = nullptr;
+    ScrollBar *m_vscroll                      = nullptr;
+    JumpMarker *m_jump_marker                 = nullptr;
+    QTimer *m_scroll_page_update_timer        = nullptr;
+    QTimer *m_resize_timer                    = nullptr;
+    PageLocation m_pending_jump               = {-1, 0, 0};
+    int m_search_index                        = -1;
+    int m_cached_hit_index                    = -2;
     GraphicsImageItem *m_cached_hit_page_item = nullptr;
-    int m_selection_start_page               = -1;
-    int m_selection_end_page                 = -1;
-    int m_last_selection_page                = -1;
-    QGraphicsPathItem *m_selection_path_item = nullptr;
-    QTimer *m_hq_render_timer                = nullptr;
-    int m_loc_history_index                  = -1;
-    bool m_is_modified                       = false;
-    LayoutMode m_layout_mode                 = LayoutMode::VERTICAL;
-    WaitingSpinnerWidget *m_spinner          = nullptr;
-    bool m_visible_pages_dirty               = true;
-    bool m_deferred_fit                      = false;
-    bool m_scroll_to_hit_pending             = false;
-    QFileSystemWatcher *m_file_watcher       = nullptr;
-    DocumentContainer *m_container           = nullptr;
+    int m_selection_start_page                = -1;
+    int m_selection_end_page                  = -1;
+    int m_last_selection_page                 = -1;
+    QGraphicsPathItem *m_selection_path_item  = nullptr;
+    QTimer *m_hq_render_timer                 = nullptr;
+    int m_loc_history_index                   = -1;
+    bool m_is_modified                        = false;
+    LayoutMode m_layout_mode                  = LayoutMode::VERTICAL;
+    WaitingSpinnerWidget *m_spinner           = nullptr;
+    bool m_visible_pages_dirty                = true;
+    bool m_deferred_fit                       = false;
+    bool m_scroll_to_hit_pending              = false;
+    QFileSystemWatcher *m_file_watcher        = nullptr;
+    DocumentContainer *m_container            = nullptr;
     // max cross-axis page size, cached by cachePageStride()
-    double m_max_page_cross_extent           = 0.0;
+    double m_max_page_cross_extent            = 0.0;
     // Portal
-    DocumentView *m_source_view              = nullptr;
-    DocumentView *m_portal_view              = nullptr;
+    DocumentView *m_source_view               = nullptr;
+    DocumentView *m_portal_view               = nullptr;
     // Visual Line Mode
-    QGraphicsPathItem *m_visual_line_item    = nullptr;
-    int m_visual_line_index                  = -1;
-    bool m_visual_line_mode                  = false;
-    bool m_thumbnail_mode                    = false;
+    QGraphicsPathItem *m_visual_line_item     = nullptr;
+    int m_visual_line_index                   = -1;
+    bool m_visual_line_mode                   = false;
+    bool m_thumbnail_mode                     = false;
 #ifdef WITH_SYNCTEX
     synctex_scanner_p m_synctex_scanner = nullptr;
 #endif
