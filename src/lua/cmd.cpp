@@ -59,14 +59,18 @@ Lektra::initLuaCmd() noexcept
         auto *lektra
             = static_cast<Lektra *>(lua_touserdata(L, lua_upvalueindex(1)));
 
-        // Guard ensures luaL_unref is called when the command is removed
+        // Guard ensures luaL_unref is called when the command is removed.
+        // Must use an explicit constructor so make_shared constructs in-place
+        // with no temporary — a brace-init temporary would call ~LuaRefGuard
+        // immediately after the move, freeing the ref before the command runs.
         struct LuaRefGuard
         {
             lua_State *L;
             int ref;
+            LuaRefGuard(lua_State *l, int r) : L(l), ref(r) {}
             ~LuaRefGuard() { luaL_unref(L, LUA_REGISTRYINDEX, ref); }
         };
-        auto guard = std::make_shared<LuaRefGuard>(LuaRefGuard{L, func_ref});
+        auto guard = std::make_shared<LuaRefGuard>(L, func_ref);
 
         lektra->commandManager()->reg(name, desc,
                                       [guard](const QStringList &args)
@@ -74,17 +78,20 @@ Lektra::initLuaCmd() noexcept
             lua_rawgeti(guard->L, LUA_REGISTRYINDEX, guard->ref);
             lua_newtable(guard->L);
             int i = 1;
+
             for (const auto &arg : args)
             {
                 lua_pushstring(guard->L, arg.toUtf8().constData());
                 lua_rawseti(guard->L, -2, i++);
             }
+
             if (lua_pcall(guard->L, 1, 0, 0) != LUA_OK)
             {
                 qWarning() << "register error:" << lua_tostring(guard->L, -1);
                 lua_pop(guard->L, 1);
             }
         });
+
         return 0;
     }, 1);
     lua_setfield(m_L, -2, "register");

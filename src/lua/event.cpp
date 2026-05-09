@@ -44,7 +44,8 @@ Lektra::initLuaEventDispatcher() noexcept
         auto *self
             = static_cast<Lektra *>(lua_touserdata(L, lua_upvalueindex(1)));
 
-        self->addEventListener(type, callbackRef, false, [L = self->m_L, callbackRef](Lektra *lektra)
+        self->addEventListener(type, callbackRef, false,
+                               [L = self->m_L, callbackRef](Lektra *lektra)
         {
             lua_rawgeti(L, LUA_REGISTRYINDEX, callbackRef);
             lua_pushlightuserdata(L, lektra);
@@ -91,7 +92,8 @@ Lektra::initLuaEventDispatcher() noexcept
         auto *self
             = static_cast<Lektra *>(lua_touserdata(L, lua_upvalueindex(1)));
 
-        self->addEventListener(type, callbackRef, true, [L = self->m_L, callbackRef](Lektra *lektra)
+        self->addEventListener(type, callbackRef, true,
+                               [L = self->m_L, callbackRef](Lektra *lektra)
         {
             lua_rawgeti(L, LUA_REGISTRYINDEX, callbackRef);
             lua_pushlightuserdata(L, lektra);
@@ -126,23 +128,11 @@ Lektra::initLuaEventDispatcher() noexcept
     lua_pushlightuserdata(m_L, this);
     lua_pushcclosure(m_L, [](lua_State *L) -> int
     {
-        const char *eventName = luaL_checkstring(L, 1);
-
+        DispatchType type = static_cast<DispatchType>(luaL_checkinteger(L, 1));
         auto *self
             = static_cast<Lektra *>(lua_touserdata(L, lua_upvalueindex(1)));
 
-        DispatchType dtype;
-        try
-        {
-            dtype = stringToDispatchType(eventName);
-        }
-        catch (const std::invalid_argument &e)
-        {
-            luaL_error(L, e.what());
-            return 0;
-        }
-
-        auto it = self->m_lua_event_dispatcher.find(dtype);
+        auto it = self->m_lua_event_dispatcher.find(type);
         if (it == self->m_lua_event_dispatcher.end())
         {
             lua_pushinteger(L, 0);
@@ -160,23 +150,23 @@ Lektra::initLuaEventDispatcher() noexcept
 void
 Lektra::dispatchLuaEvent(DispatchType type) noexcept
 {
-    // Copy so callbacks can safely call unregister without invalidating iteration
+    // Copy so callbacks can safely call unregister without invalidating
+    // iteration
     auto callbacks = m_lua_event_dispatcher[type];
     for (const auto &callback : callbacks)
         callback.invoker(this);
 
     // Remove and free any once-callbacks that just fired
     auto &live = m_lua_event_dispatcher[type];
-    live.erase(
-        std::remove_if(live.begin(), live.end(),
-                       [this](const LuaCallback<Lektra> &cb)
-                       {
-                           if (cb.is_once)
-                           {
-                               luaL_unref(m_L, LUA_REGISTRYINDEX, cb.ref);
-                               return true;
-                           }
-                           return false;
-                       }),
-        live.end());
+    live.erase(std::remove_if(live.begin(), live.end(),
+                              [this](const LuaCallback<Lektra> &cb)
+    {
+        if (cb.is_once)
+        {
+            luaL_unref(m_L, LUA_REGISTRYINDEX, cb.ref);
+            return true;
+        }
+        return false;
+    }),
+               live.end());
 }

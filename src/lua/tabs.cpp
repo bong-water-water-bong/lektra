@@ -307,7 +307,7 @@ Lektra::initLuaTabs() noexcept
     }, 1);
     lua_setfield(m_L, -2, "current");
 
-    // lektra.tabs.list() - returns a table of {index, title} for each tab
+    // lektra.tabs.list() - returns Tab[]
     lua_pushlightuserdata(m_L, this);
     lua_pushcclosure(m_L, [](lua_State *L) -> int
     {
@@ -323,11 +323,14 @@ Lektra::initLuaTabs() noexcept
         lua_newtable(L);
         for (int i = 0; i < tab_widget->count(); ++i)
         {
-            lua_newtable(L);
-            lua_pushinteger(L, i);
-            lua_setfield(L, -2, "index");
-            lua_pushstring(L, tab_widget->tabText(i).toUtf8().constData());
-            lua_setfield(L, -2, "title");
+            auto *udata = static_cast<TabHandle *>(
+                lua_newuserdata(L, sizeof(TabHandle)));
+            udata->widget = tab_widget;
+            udata->index  = i;
+
+            luaL_getmetatable(L, "TabMetaTable");
+            lua_setmetatable(L, -2);
+
             lua_rawseti(L, -2, i + 1);
         }
 

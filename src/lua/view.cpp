@@ -23,6 +23,20 @@ static const luaL_Reg DocumentViewMethods[] = {
                     return 0;
                 }),
 
+    VIEW_METHOD("undo",
+                {
+                    if (*view)
+                        (*view)->Undo();
+                    return 0;
+                }),
+
+    VIEW_METHOD("redo",
+                {
+                    if (*view)
+                        (*view)->Redo();
+                    return 0;
+                }),
+
     VIEW_METHOD("set_dpr",
                 {
                     if (*view)
@@ -167,7 +181,8 @@ static const luaL_Reg DocumentViewMethods[] = {
     VIEW_METHOD("fit",
                 {
                     if (*view)
-                        lua_pushinteger(L, static_cast<int>((*view)->fitMode()));
+                        lua_pushinteger(L,
+                                        static_cast<int>((*view)->fitMode()));
                     else
                         lua_pushnil(L);
                     return 1;
@@ -176,8 +191,8 @@ static const luaL_Reg DocumentViewMethods[] = {
     VIEW_METHOD("mode",
                 {
                     if (*view)
-                        lua_pushinteger(L,
-                                        static_cast<int>((*view)->selectionMode()));
+                        lua_pushinteger(
+                            L, static_cast<int>((*view)->selectionMode()));
                     else
                         lua_pushnil(L);
                     return 1;
@@ -219,9 +234,7 @@ static const luaL_Reg DocumentViewMethods[] = {
                 }),
 
     VIEW_METHOD("set_mode",
-                {
-                    return luaL_error(L, "set_mode: not yet implemented");
-                }),
+                { return luaL_error(L, "set_mode: not yet implemented"); }),
 
     VIEW_METHOD("rotation",
                 {
@@ -251,8 +264,8 @@ static const luaL_Reg DocumentViewMethods[] = {
     VIEW_METHOD("layout",
                 {
                     if (*view)
-                        lua_pushinteger(L,
-                                        static_cast<int>((*view)->layoutMode()));
+                        lua_pushinteger(
+                            L, static_cast<int>((*view)->layoutMode()));
                     else
                         lua_pushnil(L);
                     return 1;
@@ -522,27 +535,17 @@ static const luaL_Reg DocumentViewMethods[] = {
         {
             if (*view)
             {
-                const char *eventName = luaL_checkstring(L, 2);
-                luaL_checktype(L, 3, LUA_TFUNCTION);
+                DispatchType type
+                    = static_cast<DispatchType>(luaL_checkinteger(L, 2));
 
+                luaL_checktype(L, 3, LUA_TFUNCTION);
                 lua_pushvalue(L, 3);
+
                 // Store the callback in the registry with a unique key
                 int callbackRef = luaL_ref(L, LUA_REGISTRYINDEX);
 
-                // Add the callback to our dispatcher map
-                DispatchType dtype;
-                try
-                {
-                    dtype = stringToDispatchType(eventName);
-                }
-                catch (const std::invalid_argument &e)
-                {
-                    luaL_error(L, e.what());
-                    return 0;
-                }
-
                 // view->addEventListener(DispatchType, CallbackFn)
-                (*view)->addEventListener(dtype, callbackRef, false,
+                (*view)->addEventListener(type, callbackRef, false,
                                           [L, callbackRef](DocumentView *v)
                 {
                     // Push the callback function onto the stack
@@ -555,7 +558,8 @@ static const luaL_Reg DocumentViewMethods[] = {
                     luaL_getmetatable(L, "DocumentViewMetaTable");
                     lua_setmetatable(L, -2);
 
-                    // Call the callback with 1 argument and no return values
+                    // Call the callback with 1 argument and no return
+                    // values
                     if (lua_pcall(L, 1, 0, 0) != LUA_OK)
                     {
                         // Handle Lua errors (e.g., print the error message)
@@ -728,7 +732,8 @@ static const luaL_Reg DocumentViewMethods[] = {
                     luaL_getmetatable(L, "DocumentViewMetaTable");
                     lua_setmetatable(L, -2);
 
-                    // Call the callback with 1 argument and no return values
+                    // Call the callback with 1 argument and no return
+                    // values
                     if (lua_pcall(L, 1, 0, 0) != LUA_OK)
                     {
                         // Handle Lua errors (e.g., print the error message)
@@ -800,6 +805,68 @@ static const luaL_Reg DocumentViewMethods[] = {
                     }
                 }),
 
+    VIEW_METHOD("set_spacing",
+                {
+                    if (*view)
+                    {
+                        int spacing = lua_tonumber(L, 2);
+                        if (spacing > 0)
+                            (*view)->setSpacing(spacing);
+                    }
+
+                    return 0;
+                }),
+
+    VIEW_METHOD("auto_reload",
+                {
+                    if (*view)
+                    {
+                        lua_pushboolean(L, (*view)->autoReload());
+                    }
+                    else
+                    {
+                        lua_pushnil(L);
+                    }
+
+                    return 1;
+                }),
+
+    VIEW_METHOD("visual_line_mode",
+                {
+                    if (*view)
+                    {
+                        lua_pushboolean(L, (*view)->visual_line_mode());
+                    }
+                    else
+                    {
+                        lua_pushnil(L);
+                    }
+
+                    return 1;
+                }),
+
+    VIEW_METHOD("set_visual_line_mode",
+                {
+                    if (*view)
+                    {
+                        bool mode = lua_toboolean(L, 2);
+                        (*view)->set_visual_line_mode(mode);
+                    }
+
+                    return 0;
+                }),
+
+    VIEW_METHOD("set_auto_reload",
+                {
+                    if (*view)
+                    {
+                        bool auto_reload = lua_toboolean(L, 2);
+                        (*view)->setAutoReload(auto_reload);
+                    }
+
+                    return 0;
+                }),
+
     VIEW_METHOD("save",
                 {
                     if (*view)
@@ -808,9 +875,8 @@ static const luaL_Reg DocumentViewMethods[] = {
                 }),
 
     VIEW_METHOD("save_as",
-                {
-                    return luaL_error(L, "save_as: not yet implemented");
-                }),
+                { return luaL_error(L, "save_as: not yet implemented"); }),
+
     VIEW_METHOD("extract_text",
                 {
                     if (*view)
@@ -818,14 +884,15 @@ static const luaL_Reg DocumentViewMethods[] = {
                         bool formatted = lua_toboolean(L, 2);
                         auto text      = (*view)->extractText(formatted);
                         lua_pushstring(L, text.toUtf8().constData());
-                        return 1;
                     }
                     else
                     {
                         lua_pushnil(L);
-                        return 1;
                     }
+
+                    return 1;
                 }),
+
     VIEW_METHOD("container",
                 {
                     if (*view)
@@ -839,14 +906,33 @@ static const luaL_Reg DocumentViewMethods[] = {
                             *ud = container;
                             luaL_getmetatable(L, "ContainerMetaTable");
                             lua_setmetatable(L, -2);
-                            return 1;
                         }
                     }
+                    else
+                    {
+                        lua_pushnil(L);
+                    }
 
-                    lua_pushnil(L);
                     return 1;
                 }),
-    {nullptr, nullptr}};
+
+    VIEW_METHOD("outline",
+                {
+                    if (*view)
+                    {
+                        lua_newtable(L);
+                        auto outline = (*view)->model()->getOutline();
+                        // TODO: Implement outline
+                    }
+                    else
+                    {
+                        lua_pushnil(L);
+                    }
+
+                    return 1;
+                }),
+
+    {nullptr, nullptr}}; // end point
 
 #undef VIEW_METHOD
 
