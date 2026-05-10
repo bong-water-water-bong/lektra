@@ -300,18 +300,16 @@ Lektra::initMenubar() noexcept
     layoutActionGroup->setExclusive(true);
 
     m_actionLayoutSingle = m_layoutMenu->addAction(
-        tr("Single Page\t%1")
-            .arg(m_config.keybinds["layout_single"].join(", ")),
+        tr("Single\t%1").arg(m_config.keybinds["layout_single"].join(", ")),
         this, [&]() { SetLayoutMode(DocumentView::LayoutMode::SINGLE); });
 
     m_actionLayoutLeftToRight = m_layoutMenu->addAction(
-        tr("Left to Right Page\t%1")
+        tr("Horizontal\t%1")
             .arg(m_config.keybinds["layout_horizontal"].join(", ")),
         this, [&]() { SetLayoutMode(DocumentView::LayoutMode::HORIZONTAL); });
 
     m_actionLayoutTopToBottom = m_layoutMenu->addAction(
-        tr("Top to Bottom Page\t%1")
-            .arg(m_config.keybinds["layout_vertical"].join(", ")),
+        tr("Vertical\t%1").arg(m_config.keybinds["layout_vertical"].join(", ")),
         this, [&]() { SetLayoutMode(DocumentView::LayoutMode::VERTICAL); });
 
     m_actionLayoutBook = m_layoutMenu->addAction(

@@ -37,6 +37,7 @@
 
 ### Bug Fixes
 
+- Update the layout menu item names
 - Fix crash (SEGV) on click selection in `SINGLE` layout mode — `pageAtScenePos` was
   guarding the `outPageItem` assignment with `if (outPageItem)`, but the pointer is always
   `nullptr` at that point, so `pageItem` was never set and `mapFromScene` dereferenced null.
