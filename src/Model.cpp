@@ -1000,7 +1000,13 @@ Model::openAsync_image(const QString &canonPath) noexcept
         std::vector<Magick::Image> pings;
         try
         {
+    #if MagickLibVersion >= 0x700
             Magick::pingImages(&pings, pathStr);
+    #else
+            Magick::Image img;
+            img.ping(pathStr);
+            pings.push_back(img);
+    #endif
         }
         catch (const Magick::Exception &e)
         {
@@ -1019,10 +1025,9 @@ Model::openAsync_image(const QString &canonPath) noexcept
 
         const int frameCount = static_cast<int>(pings.size());
 
-        // ── Step 2: Decode frame 0 only — show the image immediately ──
         // Using the [0] scene specifier avoids reading all frames up front.
-        // Frame 0 of any valid animated image is always a complete canvas image,
-        // so no coalescing is needed for the initial display.
+        // Frame 0 of any valid animated image is always a complete canvas
+        // image, so no coalescing is needed for the initial display.
         Magick::Image firstImg;
         try
         {
@@ -1050,15 +1055,14 @@ Model::openAsync_image(const QString &canonPath) noexcept
         // ── Static image (single frame) ───────────────────────────
         if (frameCount == 1)
         {
-            QMetaObject::invokeMethod(this,
-                                      [this, first = std::move(first), w,
-                                       h]() mutable
+            QMetaObject::invokeMethod(
+                this, [this, first = std::move(first), w, h]() mutable
             {
                 cleanup_image();
-                m_is_image    = true;
-                m_is_animated = false;
-                m_success     = true;
-                m_page_count  = 1;
+                m_is_image         = true;
+                m_is_animated      = false;
+                m_success          = true;
+                m_page_count       = 1;
                 m_default_page_dim = {w, h};
                 m_page_dim_cache.dimensions.assign(1, m_default_page_dim);
                 m_page_dim_cache.known.assign(1, true);
@@ -1075,18 +1079,16 @@ Model::openAsync_image(const QString &canonPath) noexcept
             delays.push_back(delayMs(p));
         pings.clear();
 
-        // ── Step 3: Emit openFileFinished with frame 0 ───────────
         // The UI becomes responsive immediately; remaining frames are decoded
         // in the background below and stored as they finish.
-        QMetaObject::invokeMethod(this,
-                                  [this, first, delays, frameCount, w,
-                                   h]() mutable
+        QMetaObject::invokeMethod(
+            this, [this, first, delays, frameCount, w, h]() mutable
         {
             cleanup_image();
-            m_is_image    = true;
-            m_is_animated = true;
-            m_success     = true;
-            m_page_count  = 1;
+            m_is_image         = true;
+            m_is_animated      = true;
+            m_success          = true;
+            m_page_count       = 1;
             m_default_page_dim = {w, h};
             m_page_dim_cache.dimensions.assign(1, m_default_page_dim);
             m_page_dim_cache.known.assign(1, true);
@@ -1098,11 +1100,10 @@ Model::openAsync_image(const QString &canonPath) noexcept
             emit openFileFinished();
         }, Qt::QueuedConnection);
 
-        // ── Step 4: Background full decode of remaining frames ────
         // readImages + coalesceImages happen here, off the UI thread.
         // Each frame is posted to the UI thread as it finishes so the
         // animation improves progressively rather than all-at-once.
-        QtConcurrent::run([this, pathStr, frameCount]()
+        auto _ = QtConcurrent::run([this, pathStr, frameCount]()
         {
             try
             {
@@ -1112,11 +1113,12 @@ Model::openAsync_image(const QString &canonPath) noexcept
                     return;
 
                 std::vector<Magick::Image> coalesced;
-                Magick::coalesceImages(&coalesced, frames.begin(), frames.end());
+                Magick::coalesceImages(&coalesced, frames.begin(),
+                                       frames.end());
                 frames.clear(); // free raw frames as soon as coalescing is done
 
-                for (int i = 1; i < static_cast<int>(coalesced.size())
-                                && i < frameCount;
+                for (int i = 1;
+                     i < static_cast<int>(coalesced.size()) && i < frameCount;
                      ++i)
                 {
                     QImage img = toQImage(std::move(coalesced[i]));
