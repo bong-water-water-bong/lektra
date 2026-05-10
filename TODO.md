@@ -7,7 +7,6 @@
 - [ ] Export highlight annotations (lua api)
 - [ ] Allow for command arguments
 - [ ] Allow opening multiple files from the file dialog
-- [ ] Render large gifs quickly and efficiently
 - [ ] Tab detach drag and drop to new window spawns new useless window
 - [ ] Add copy text to text highlight annotation for convenience
 - [ ] Boundary of the annotations need to extend only for the annotation
