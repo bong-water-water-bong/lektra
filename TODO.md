@@ -4,6 +4,7 @@
 
 ## HIGH PRIORITY
 
+- [ ] Suspend unused tabs when inactive for a given time
 - [ ] Export highlight annotations (lua api)
 - [ ] Allow for command arguments
 - [ ] Allow opening multiple files from the file dialog
