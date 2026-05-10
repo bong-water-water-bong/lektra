@@ -40,6 +40,12 @@
 - Fix crash (SEGV) on click selection in `SINGLE` layout mode — `pageAtScenePos` was
   guarding the `outPageItem` assignment with `if (outPageItem)`, but the pointer is always
   `nullptr` at that point, so `pageItem` was never set and `mapFromScene` dereferenced null.
+- Fix wrong text selection after zoom in `SINGLE` layout mode — `setZoomAnchored` called
+  `repositionPages()` (which scales the old item as a visual intermediate) but never
+  triggered a re-render, leaving the page item permanently at a non-unity scale. Because
+  `mapFromScene` divides by the item scale, selection coordinates were passed to
+  `computeTextSelectionQuad` in the wrong zoom space. Fixed by calling `renderPage()` for
+  `SINGLE` mode after `repositionPages()` in `setZoomAnchored`.
 - Fix fit mode not working if image files are opened
 - Fix memory leak in `extractText` function in `Model` class
 - Add UTF-8 text conversion for file paths on Windows to fix issues with opening files with non-ASCII characters in their paths on Windows.

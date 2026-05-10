@@ -1496,6 +1496,8 @@ DocumentView::setZoomAnchored(double factor, QPointF anchorScenePos) noexcept
             cachePageStride();
             updateSceneRect();
             repositionPages();
+            if (m_layout_mode == LayoutMode::SINGLE)
+                renderPage();
         }
 
         // Find where the anchor point is now in scene coordinates
