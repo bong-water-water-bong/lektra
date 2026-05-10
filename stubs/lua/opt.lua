@@ -8,24 +8,31 @@ lektra.opt = {}
 
 ---@enum LayoutMode
 lektra.LayoutMode = {
-    VERTICAL   = 0,
-    HORIZONTAL = 1,
-    SINGLE     = 2,
-    BOOK       = 3,
+    Vertical   = 0,
+    Horizontal = 1,
+    Single     = 2,
+    Book       = 3,
 }
 
 ---@enum FitMode
 lektra.FitMode = {
-    WIDTH  = 0,
-    HEIGHT = 1,
-    WINDOW = 2,
+    Width  = 0,
+    Height = 1,
+    Window = 2,
 }
 
 ---@enum MouseButton
 lektra.MouseButton = {
-    LEFT   = 1,
-    RIGHT  = 2,
-    MIDDLE = 4,
+    Left   = 1,
+    Right  = 2,
+    Middle = 4,
+}
+
+---@enum Backend
+lektra.Backend = {
+    Auto = 0,
+    Raster = 1,
+    OpenGL = 2,
 }
 
 -- ── Section class definitions ─────────────────────────────────────────────────
@@ -208,6 +215,7 @@ lektra.opt.command_palette = {}
 ---@field antialiasing_bits integer Number of multisampling bits for antialiasing (e.g. 4, 8).
 ---@field text_antialiasing boolean Enable text-specific antialiasing.
 ---@field smooth_pixmap_transform boolean Use smooth (bilinear) scaling for pixmaps.
+---@field backend Backend Rendering backend
 lektra.opt.rendering = {}
 
 ---@class OptBehavior
