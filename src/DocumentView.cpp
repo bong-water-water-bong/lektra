@@ -3436,8 +3436,7 @@ DocumentView::pageAtScenePos(QPointF scenePos, int &outPageIndex,
             && it.value()->sceneBoundingRect().contains(scenePos))
         {
             outPageIndex = m_pageno;
-            if (outPageItem)
-                outPageItem = it.value();
+            outPageItem  = it.value();
             return true;
         }
         return false;

@@ -37,6 +37,9 @@
 
 ### Bug Fixes
 
+- Fix crash (SEGV) on click selection in `SINGLE` layout mode — `pageAtScenePos` was
+  guarding the `outPageItem` assignment with `if (outPageItem)`, but the pointer is always
+  `nullptr` at that point, so `pageItem` was never set and `mapFromScene` dereferenced null.
 - Fix fit mode not working if image files are opened
 - Fix memory leak in `extractText` function in `Model` class
 - Add UTF-8 text conversion for file paths on Windows to fix issues with opening files with non-ASCII characters in their paths on Windows.
