@@ -795,6 +795,7 @@ static const luaL_Reg DocumentViewMethods[] = {
                     }
                 }),
 
+#ifdef WITH_IMAGE
     VIEW_METHOD("is_image",
                 {
                     if (*view)
@@ -808,6 +809,7 @@ static const luaL_Reg DocumentViewMethods[] = {
                         return 1;
                     }
                 }),
+#endif
 
     VIEW_METHOD("id",
                 {
