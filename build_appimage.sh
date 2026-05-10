@@ -1,9 +1,15 @@
 #!/bin/sh
 set -eu
 
+WITH_DJVU="off"
+WITH_IMAGE="on"
+WITH_SYNCTEX="on"
+WITH_LUA="on"
+
 ROOT_DIR=$(cd "$(dirname "$0")" && pwd)
 BUILD_DIR="$ROOT_DIR/build-appimage"
 APPDIR="$ROOT_DIR/appimage/AppDir"
+
 DESKTOP_FILE="$APPDIR/usr/share/applications/lektra.desktop"
 ICON_FILE="$APPDIR/usr/share/icons/hicolor/512x512/apps/lektra.png"
 JOBS=${JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)}
@@ -23,14 +29,20 @@ need() {
 
 need cmake
 need make
-#need linuxdeploy
 
 if [ "$CLEAN_APPDIR" -eq 1 ]; then
     rm -rf "$APPDIR"
 fi
 mkdir -p "$APPDIR"
 
-cmake -S "$ROOT_DIR" -B "$BUILD_DIR" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr
+cmake -S "$ROOT_DIR" -B "$BUILD_DIR" \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=/usr \
+    -DWITH_LUA="$WITH_LUA" \
+    -DWITH_IMAGE="$WITH_IMAGE" \
+    -DWITH_SYNCTEX="$WITH_SYNCTEX" \
+    -DWITH_DJVU="$WITH_DJVU"
+
 cmake --build "$BUILD_DIR" -j"$JOBS"
 DESTDIR="$APPDIR" cmake --install "$BUILD_DIR"
 
@@ -48,21 +60,14 @@ fi
 
 ln -sf usr/bin/lektra "$APPDIR/AppRun"
 
-#VERSION="$APP_VERSION" NO_STRIP=1 ./linuxdeploy-x86_64.AppImage --appimage-extract \
-#    --appdir "$APPDIR" \
-#    --desktop-file "$DESKTOP_FILE" \
-#    --icon-file "$ICON_FILE" \
-#    --output appimage
-
 export EXTRA_QT_PLUGINS="waylandcompositor"
 export EXTRA_PLATFORM_PLUGINS="libqwayland-egl.so;libqwayland-generic.so"
 export QMAKE=qmake6
-export EXTRA_PLATFORM_PLUGINS="libqwayland-egl.so;libqwayland-generic.so"
 export APPIMAGE_EXTRACT_AND_RUN=1
 
 VERSION="$APP_VERSION" NO_STRIP=0 \
 	./linuxdeploy-x86_64.AppImage \
-	--appdir AppDir \
+	--appdir "$APPDIR" \
 	--executable ./appimage/AppDir/usr/bin/lektra \
 	--desktop-file ./appimage/AppDir/usr/share/applications/lektra.desktop \
 	--icon-file ./appimage/AppDir/usr/share/icons/hicolor/512x512/apps/lektra.png \
