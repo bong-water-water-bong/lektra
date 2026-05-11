@@ -513,6 +513,7 @@ public:
 
     std::vector<HighlightText> collectHighlightTexts(bool groupByLine
                                                      = true) noexcept;
+    bool exportTextHighlights(const QString &path) noexcept;
 
     std::vector<AnnotCommentInfo> collect_annot_comments() noexcept;
     void annotChangeColor(int pageno, int index, const QColor &color) noexcept;

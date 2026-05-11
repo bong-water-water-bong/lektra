@@ -5,7 +5,11 @@
 #include "Config.hpp"
 #include "utils.hpp"
 
+#include <QFile>
 #include <QImageReader>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QtConcurrent/QtConcurrent>
 #include <algorithm>
 #include <array>
@@ -3947,6 +3951,30 @@ Model::collectHighlightTexts(bool groupByLine) noexcept
     }
 
     return results;
+}
+
+bool
+Model::exportTextHighlights(const QString &path) noexcept
+{
+    const auto highlights = collectHighlightTexts();
+
+    QJsonArray arr;
+    for (const auto &h : highlights)
+    {
+        QJsonObject obj;
+        obj["page"] = h.page + 1;
+        obj["text"] = h.text;
+        if (!h.comment.isEmpty())
+            obj["comment"] = h.comment;
+        arr.append(obj);
+    }
+
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        return false;
+
+    file.write(QJsonDocument(arr).toJson(QJsonDocument::Indented));
+    return true;
 }
 
 void
