@@ -300,10 +300,9 @@ function View:outline() end
 
 --- Exports all highlight annotations in the document to a JSON file.
 --- Each entry in the JSON array contains `page` (1-based), `text`, and optionally `comment`.
---- Returns true on success, or nil plus an error message on failure.
+--- Returns true on success, or nil on failure.
 ---@param path string The file path to write the JSON output to.
 ---@return true | nil result `true` on success, `nil` on failure.
----@return string? err An error message when result is nil.
 function View:export_highlights(path) end
 
 -- ##########################################
