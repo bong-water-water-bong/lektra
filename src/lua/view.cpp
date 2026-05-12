@@ -965,6 +965,31 @@ static const luaL_Reg DocumentViewMethods[] = {
                     return 1;
                 }),
 
+    VIEW_METHOD(
+        "export_highlights",
+        {
+            if (!*view)
+            {
+                lua_pushnil(L);
+                lua_pushstring(L, "no active view");
+                return 2;
+            }
+
+            const char *path = luaL_checkstring(L, 2);
+            const bool ok = (*view)->model()->exportTextHighlights(
+                QString::fromUtf8(path));
+
+            if (!ok)
+            {
+                lua_pushnil(L);
+                lua_pushstring(L, "failed to write file");
+                return 2;
+            }
+
+            lua_pushboolean(L, 1);
+            return 1;
+        }),
+
     {nullptr, nullptr}}; // end point
 
 #undef VIEW_METHOD

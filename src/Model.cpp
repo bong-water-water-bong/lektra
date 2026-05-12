@@ -5,7 +5,11 @@
 #include "Config.hpp"
 #include "utils.hpp"
 
+#include <QFile>
 #include <QImageReader>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QtConcurrent/QtConcurrent>
 #include <algorithm>
 #include <array>
@@ -1063,7 +1067,9 @@ Model::openAsync_image(const QString &canonPath) noexcept
                 m_is_animated      = false;
                 m_success          = true;
                 m_page_count       = 1;
-                m_default_page_dim = {w, h};
+                // Convert pixel dims to pts so the DPI-based scale in
+                // pageSceneSize / repositionPages cancels out cleanly.
+                m_default_page_dim = {w * 72.0f / m_dpi, h * 72.0f / m_dpi};
                 m_page_dim_cache.dimensions.assign(1, m_default_page_dim);
                 m_page_dim_cache.known.assign(1, true);
                 m_image_cache = std::move(first);
@@ -1089,7 +1095,7 @@ Model::openAsync_image(const QString &canonPath) noexcept
             m_is_animated      = true;
             m_success          = true;
             m_page_count       = 1;
-            m_default_page_dim = {w, h};
+            m_default_page_dim = {w * 72.0f / m_dpi, h * 72.0f / m_dpi};
             m_page_dim_cache.dimensions.assign(1, m_default_page_dim);
             m_page_dim_cache.known.assign(1, true);
             m_frame_delays_ms = delays;
@@ -3885,6 +3891,11 @@ Model::collectHighlightTexts(bool groupByLine) noexcept
                 if (quad_count <= 0)
                     continue;
 
+                const char *contents = pdf_annot_contents(m_ctx, annot);
+                const QString comment
+                    = contents ? QString::fromUtf8(contents).trimmed()
+                                : QString{};
+
                 std::vector<fz_quad> quads;
                 quads.reserve(quad_count);
                 for (int i = 0; i < quad_count; ++i)
@@ -3895,6 +3906,9 @@ Model::collectHighlightTexts(bool groupByLine) noexcept
                     line_quads = merge_quads_by_line(quads);
                 else
                     line_quads = merged_quads_from_quads(quads);
+
+                QStringList parts;
+                fz_quad anchor_quad{};
 
                 for (const fz_quad &q : line_quads)
                 {
@@ -3915,8 +3929,14 @@ Model::collectHighlightTexts(bool groupByLine) noexcept
                     if (text.isEmpty())
                         continue;
 
-                    results.push_back({pageno, text, q});
+                    if (parts.isEmpty())
+                        anchor_quad = q;
+                    parts.append(text);
                 }
+
+                if (!parts.isEmpty())
+                    results.push_back(
+                        {pageno, parts.join(' '), comment, anchor_quad});
             }
         }
         fz_always(m_ctx)
@@ -3931,6 +3951,30 @@ Model::collectHighlightTexts(bool groupByLine) noexcept
     }
 
     return results;
+}
+
+bool
+Model::exportTextHighlights(const QString &path) noexcept
+{
+    const auto highlights = collectHighlightTexts();
+
+    QJsonArray arr;
+    for (const auto &h : highlights)
+    {
+        QJsonObject obj;
+        obj["page"] = h.page + 1;
+        obj["text"] = h.text;
+        if (!h.comment.isEmpty())
+            obj["comment"] = h.comment;
+        arr.append(obj);
+    }
+
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        return false;
+
+    file.write(QJsonDocument(arr).toJson(QJsonDocument::Indented));
+    return true;
 }
 
 void

@@ -1,5 +1,31 @@
 # LEKTRA CHANGELOG
 
+## 0.7.2
+
+### Features
+
+- Add `collectHighlightTexts()` on `Model` returning a `std::vector<HighlightText>` with
+  `page`, `text`, `comment`, and `quad` fields. Multi-line highlights are grouped into a
+  single entry (lines joined with a space) rather than one entry per line.
+- Add Lua API `view:export_highlights(path)` that serialises all highlight annotations to
+  a JSON file. Each entry contains `page` (1-based), `text`, and optionally `comment`.
+  Returns `true` on success or `nil, error` on failure.
+
+### Bug Fixes
+
+- Fix image files always rendering blurry: pixel dimensions were stored directly as
+  typographic points in the page dimension cache, causing `pageSceneSize` and
+  `repositionPages` to apply an extra ×(dpi/72) upscale on every render. Dimensions
+  are now converted to pts (`px * 72 / dpi`) on load, matching the DjVu path.
+- Fix image zoom leaving blurry pixels: `setZoomAnchored` for images only applied a
+  Qt scene-transform scale and never triggered a pixel-level re-render. The HQ render
+  timer is now started after each anchor zoom so that, once zoom settles, `renderImage`
+  re-renders at the exact target dimensions using `Qt::SmoothTransformation`.
+
+### Performance
+
+### Breaking Changes
+
 ## 0.7.1
 
 ### Features

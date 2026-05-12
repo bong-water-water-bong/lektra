@@ -4779,6 +4779,28 @@ Lektra::initCommands() noexcept
         }
     });
 
+    m_command_manager->reg("export_highlights",
+                           tr("Export text highlight annotations"),
+                           [this](const QStringList &)
+    {
+        if (!m_doc)
+            return;
+        auto *model = m_doc->model();
+        if (!model || !model->supports_annotations())
+            return;
+
+        const QString path = QFileDialog::getSaveFileName(
+            this, tr("Export Highlights"), {},
+            tr("JSON files (*.json);;All files (*)"));
+        if (path.isEmpty())
+            return;
+
+        if (model->exportTextHighlights(path))
+            m_message_bar->showMessage(tr("Highlights exported to %1").arg(path), 4.0f);
+        else
+            m_message_bar->showMessage(tr("Export highlights failed"), 6.0f);
+    });
+
     m_command_manager->reg("open_config", tr("Open configuration file"),
                            [this](const QStringList &) { OpenConfigFile(); });
 
