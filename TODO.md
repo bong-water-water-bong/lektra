@@ -4,6 +4,7 @@
 
 ## HIGH PRIORITY
 
+- [ ] Jump marker zoom doesn't affect location when reshowing
 - [ ] Suspend unused tabs when inactive for a given time
 - [ ] Export highlight annotations (lua api)
 - [ ] Allow for command arguments
