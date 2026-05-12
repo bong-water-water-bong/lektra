@@ -79,10 +79,9 @@ https://github.com/user-attachments/assets/c3b80351-3af3-4488-87a6-8b52c27f875c
 ### Documents
 - PDF, XPS, OXPS, CBZ, FB2, EPUB, Mobi, DjVu (if compiled)
 
-### Images (if compiled with image support)
-- All the file formats supported by [ImageMagick](https://imagemagick.org/formats) ~ 170 formats, including but not limited to: JPEG, PNG, TIFF, GIF, SVG, WebP, HEIC, AVIF etc.
-- Also supports multi-frame animated images (e.g. animated GIFs, animated WebPs etc.) and multi-page TIFFs.
-
+### Images
+- JPG, PNG, APNG, BMP, WEBP, GIF, TIFF, ICO, SVG, PPM, PGM, PBM
+- multi-frame animated images (e.g. animated GIFs, animated WebPs etc.) and multi-page TIFFs.
 
 # AI Usage
 
