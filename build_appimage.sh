@@ -58,6 +58,23 @@ else
     exit 1
 fi
 
+# Bundle ImageMagick coder modules and config so IM can find them at runtime.
+# linuxdeploy does not pick up dlopen'd coder .so files automatically.
+if [ "$(echo "$WITH_IMAGE" | tr '[:upper:]' '[:lower:]')" = "on" ] \
+   && command -v Magick++-config >/dev/null 2>&1; then
+    IM_VER=$(Magick++-config --version | awk '{print $1}')
+    IM_SRC="/usr/lib/ImageMagick-${IM_VER}"
+    if [ -d "$IM_SRC" ]; then
+        cp -r "$IM_SRC" "$APPDIR/usr/lib/"
+        mkdir -p "$APPDIR/apprun-hooks"
+        printf '#!/bin/sh\nexport MAGICK_HOME="$APPDIR/usr"\n' \
+            > "$APPDIR/apprun-hooks/imagemagick.sh"
+        chmod +x "$APPDIR/apprun-hooks/imagemagick.sh"
+    else
+        echo "Warning: ImageMagick lib dir not found at $IM_SRC" >&2
+    fi
+fi
+
 ln -sf usr/bin/lektra "$APPDIR/AppRun"
 
 export EXTRA_QT_PLUGINS="waylandcompositor"
