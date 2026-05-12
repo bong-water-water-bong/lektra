@@ -32,6 +32,7 @@ extern "C"
 }
 
 // Forward declaration
+class QMovie;
 class TextHighlightAnnotationCommand;
 class TextAnnotationCommand;
 class DocumentView;
@@ -60,7 +61,6 @@ public:
         FB2,
         MOBI,
 // Images
-#ifdef WITH_IMAGE
         JPG,
         PNG,
         SVG,
@@ -69,20 +69,11 @@ public:
         GIF,
         WEBP,
         TIFF,
-        AVIF,
-        HEIC,
-        JXL,
-        QOI,
-        PSD,
-        EXR,
-        HDR,
         TGA,
         ICO,
         PPM,
         PGM,
         PBM,
-        PCX,
-#endif
     };
 
     struct LinkInfo
@@ -266,7 +257,6 @@ public:
         m_rotation = angle;
     }
 
-#ifdef WITH_IMAGE
     inline bool isAnimated() const noexcept
     {
         return m_is_animated;
@@ -276,7 +266,6 @@ public:
     {
         return m_is_image;
     }
-#endif
 
     inline float rotation() const noexcept
     {
@@ -451,9 +440,7 @@ public:
     void requestPageRender(
         const RenderJob &job,
         const std::function<void(PageRenderResult)> &callback) noexcept;
-#ifdef WITH_IMAGE
     QImage requestImageRender(bool highQuality = false) noexcept;
-#endif
     PageRenderResult renderPageWithExtrasAsync(const RenderJob &job) noexcept;
 
     Properties properties() noexcept;
@@ -465,11 +452,8 @@ public:
 #ifdef HAS_DJVU
     QFuture<void> openAsync_djvu(const QString &canonicalPath) noexcept;
 #endif
-#ifdef WITH_IMAGE
     QFuture<void> openAsync_image(const QString &canonicalPath) noexcept;
     void cleanup_image() noexcept;
-    void setCurrentAnimFrame(int index) noexcept;
-#endif
     void _continueOpen(fz_context *ctx, fz_document *doc) noexcept;
 
     QFuture<void> submitPassword(const QString &password) noexcept;
@@ -627,9 +611,7 @@ private:
         fz_display_list *display_list = nullptr;
         fz_rect bounds;
 
-#if defined(HAS_DJVU) || defined(WITH_IMAGE)
         QImage cached_image; // for DJVU
-#endif
         PageDimension dimension;
         std::vector<CachedLink> links;
         std::vector<CachedAnnotation> annotations;
@@ -780,38 +762,12 @@ private:
     std::atomic<int> m_search_match_count = 0;
     std::atomic<bool> m_search_cancelled  = false;
 
-#ifdef WITH_IMAGE
     QImage m_image_cache;
     bool m_is_image    = false;
     bool m_is_animated = false;
-    QList<QImage> m_animated_frames;
-    QList<int> m_frame_delays_ms;
-    int m_frame_count   = 0;
-    int m_current_frame = 0;
+    QMovie *m_movie    = nullptr;
 
-    int currentAnimFrame() const noexcept
-    {
-        return m_current_frame;
-    }
-
-    bool animFrameReady(int index) const noexcept
-    {
-        return index >= 0 && index < m_animated_frames.size()
-               && !m_animated_frames[index].isNull();
-    }
-
-    int frameCount() const noexcept
-    {
-        return m_frame_count;
-    }
-
-    int frameDelayMs(int i) const noexcept
-    {
-        if (i < 0 || i >= m_frame_delays_ms.size())
-            return 100;
-        return m_frame_delays_ms[i];
-    }
-#endif
+    QMovie *movie() noexcept { return m_movie; }
 
     const Config &m_config;
 };

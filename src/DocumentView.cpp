@@ -1,5 +1,7 @@
 #include "DocumentView.hpp"
 
+#include <QMovie>
+
 // Annotations
 #include "Annotations/HighlightAnnotation.hpp"
 #include "Annotations/PopupAnnotation.hpp"
@@ -94,9 +96,7 @@ DocumentView::DocumentView(const Config &config, float dpr, QWidget *parent,
 
 DocumentView::~DocumentView() noexcept
 {
-#ifdef WITH_IMAGE
     stopGifPlayback();
-#endif
 
     // Stop and WAIT for all renders to finish before touching anything
     stopPendingRenders();
@@ -351,13 +351,10 @@ DocumentView::handleOpenFileFinished() noexcept
     if (!m_model->success())
         return;
 
-#ifdef WITH_IMAGE
     stopGifPlayback();
-#endif
 
     m_pageno = 0;
 
-#ifdef WITH_IMAGE
     if (m_model->isImage())
     {
         setLayoutMode(LayoutMode::SINGLE);
@@ -373,7 +370,6 @@ DocumentView::handleOpenFileFinished() noexcept
         // QTimer::singleShot(0, this, [this]() { renderImage(); });
     }
     else
-#endif
     {
         // Block scroll signals to prevent jumping during layout swap
         m_vscroll->blockSignals(true);
@@ -412,70 +408,30 @@ DocumentView::handleOpenFileFinished() noexcept
 #endif
 }
 
-#ifdef WITH_IMAGE
 void
 DocumentView::startGifPlayback() noexcept
 {
     if (m_thumbnail_mode || !m_model->isAnimated())
         return;
 
-    if (m_anim_timer && m_anim_timer->isActive())
+    QMovie *movie = m_model->movie();
+    if (!movie || movie->state() == QMovie::Running)
         return;
 
-    stopGifPlayback();
-
-    m_anim_timer = new QTimer(this);
-    m_anim_timer->setSingleShot(true);
-
-    m_anim_frame_clock.start();
-
-    connect(m_anim_timer, &QTimer::timeout, this, [this]()
-    {
-        if (!m_model->isAnimated())
-            return;
-
-        const int frameCount = m_model->frameCount();
-        const int start      = m_model->currentAnimFrame();
-        int next             = (start + 1) % frameCount;
-
-        // Skip frames that haven't been decoded yet (background decode
-        // still in progress). Wrap around at most once to avoid spinning.
-        while (!m_model->animFrameReady(next) && next != start)
-            next = (next + 1) % frameCount;
-
-        m_model->setCurrentAnimFrame(next);
-
-        renderImage();
-
-        // Subtract the time already spent (decode + render) from the
-        // nominal delay so the overall cadence stays on schedule.
-        const int delay     = m_model->frameDelayMs(next);
-        const int elapsed   = static_cast<int>(m_anim_frame_clock.restart());
-        const int remaining = std::max(0, delay - elapsed);
-        m_anim_timer->start(remaining);
-    });
-
-    m_anim_frame_clock.restart();
-    m_anim_timer->start(m_model->frameDelayMs(0));
+    connect(movie, &QMovie::frameChanged, this, [this](int) { renderImage(); });
+    movie->start();
 }
 
 void
 DocumentView::stopGifPlayback() noexcept
 {
-    #ifndef NDEBUG
-    qDebug() << "DocumentView::stopGifPlayback(): Stopping GIF animation timer";
-    #endif
-
-    if (!m_anim_timer)
+    QMovie *movie = m_model->movie();
+    if (!movie)
         return;
 
-    m_anim_timer->stop();
-    m_anim_timer->disconnect(this);
-    m_anim_timer->deleteLater();
-    m_anim_timer = nullptr;
+    movie->stop();
+    movie->disconnect(this);
 }
-
-#endif
 
 void
 DocumentView::resetConnections() noexcept
@@ -536,7 +492,6 @@ DocumentView::initConnections() noexcept
             &DocumentView::handleSynctexJumpRequested);
 #endif
 
-#ifdef WITH_IMAGE
     if (m_model->isImage())
     {
         connect(m_hq_render_timer, &QTimer::timeout, this,
@@ -555,7 +510,6 @@ DocumentView::initConnections() noexcept
 
         return;
     }
-#endif
 
     if (m_thumbnail_mode)
     {
@@ -1211,14 +1165,12 @@ DocumentView::RotateAnticlock() noexcept
 void
 DocumentView::rotateHelper() noexcept
 {
-#ifdef WITH_IMAGE
     if (m_model->isImage())
     {
         // stopGifPlayback();
         renderImage();
         return;
     }
-#endif
     cachePageStride();
     const std::set<int> &trackedPages = getVisiblePages();
 
@@ -1268,7 +1220,6 @@ DocumentView::setFitMode(FitMode mode) noexcept
 
     double bboxW, bboxH;
 
-#ifdef WITH_IMAGE
     if (m_model->isImage())
     {
         GraphicsImageItem *imageItem = m_page_items_hash.value(0, nullptr);
@@ -1296,7 +1247,6 @@ DocumentView::setFitMode(FitMode mode) noexcept
         }
     }
     else
-#endif
     {
         const auto pageDim = m_model->page_dimension_pts(m_pageno);
 
@@ -1393,9 +1343,7 @@ DocumentView::setZoom(double factor, bool restoreLocation) noexcept
     else
     {
         m_current_zoom = factor;
-#ifdef WITH_IMAGE
         if (!m_model->isImage())
-#endif
             invalidateVisiblePagesCache();
         zoomHelper(PageLocation{-1, 0, 0});
     }
@@ -1410,7 +1358,6 @@ DocumentView::setZoomAnchored(double factor, QPointF anchorScenePos) noexcept
              << "anchored at" << anchorScenePos;
 #endif
 
-#ifdef WITH_IMAGE
     if (m_model->isImage())
     {
         GraphicsImageItem *imageItem = m_page_items_hash.value(0, nullptr);
@@ -1463,7 +1410,6 @@ DocumentView::setZoomAnchored(double factor, QPointF anchorScenePos) noexcept
 
         return;
     }
-#endif
 
     factor = std::clamp(factor, MIN_ZOOM_FACTOR, MAX_ZOOM_FACTOR);
 
@@ -1491,14 +1437,12 @@ DocumentView::setZoomAnchored(double factor, QPointF anchorScenePos) noexcept
         // Apply zoom
         m_current_zoom = factor;
 
-#ifdef WITH_IMAGE
         if (m_model->isImage())
         {
             m_model->setZoom(m_current_zoom);
             renderImage();
         }
         else
-#endif
         {
             invalidateVisiblePagesCache();
             ClearTextSelection();
@@ -2361,9 +2305,7 @@ DocumentView::SaveAsFile() noexcept
 void
 DocumentView::CloseFile() noexcept
 {
-#ifdef WITH_IMAGE
     stopGifPlayback();
-#endif
 
     // Disconnect watcher before cancelling to prevent handleOpenFileFinished
     // firing for the old future
@@ -2868,7 +2810,6 @@ DocumentView::renderPages() noexcept
     }
 }
 
-#ifdef WITH_IMAGE
 void
 DocumentView::renderImage() noexcept
 {
@@ -2917,13 +2858,11 @@ DocumentView::renderImage() noexcept
     updateSceneRect();
     repositionPages();
 }
-#endif
 
 // Render a specific page (used when LayoutMode is SINGLE)
 void
 DocumentView::renderPage() noexcept
 {
-#ifdef WITH_IMAGE
     if (m_model->isImage())
     {
         renderImage();
@@ -2937,7 +2876,6 @@ DocumentView::renderPage() noexcept
         updateCurrentHitHighlight();
         return;
     }
-#endif
 
     m_gview->setUpdatesEnabled(false);
     m_gscene->blockSignals(true);
@@ -4511,13 +4449,11 @@ void
 DocumentView::setInvertColor(bool invert) noexcept
 {
     m_model->setInvertColor(invert);
-#ifdef WITH_IMAGE
     if (m_model->isAnimated())
     {
         renderImage();
         return;
     }
-#endif
 
     if (m_layout_mode == LayoutMode::SINGLE)
         renderPage();
@@ -4930,13 +4866,11 @@ DocumentView::tryReloadLater(int attempt) noexcept
             return;
         else
         {
-#ifdef WITH_IMAGE
             if (m_model->isImage())
             {
                 renderImage();
             }
             else
-#endif
             {
 #ifdef WITH_SYNCTEX
                 initSynctex();
@@ -5076,14 +5010,12 @@ DocumentView::zoomHelper(const PageLocation &loc) noexcept
     qDebug() << "DocumentView::zoomHelper(): Zooming to" << m_current_zoom;
 #endif
 
-#ifdef WITH_IMAGE
     if (m_model->isImage())
     {
         m_model->setZoom(m_current_zoom);
         renderImage();
     }
     else
-#endif
     {
         ClearTextSelection();
         m_model->setZoom(m_current_zoom);

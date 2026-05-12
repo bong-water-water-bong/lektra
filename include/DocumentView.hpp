@@ -342,10 +342,8 @@ public:
     void removeContextMenuListener(ContextMenuType type, int handle) noexcept;
 #endif
 
-#ifdef WITH_IMAGE
     void startGifPlayback() noexcept;
     void stopGifPlayback() noexcept;
-#endif
 
     void setAutoReload(bool state) noexcept;
     void setDPR(float dpr) noexcept;
@@ -364,9 +362,7 @@ public:
     bool DecryptDocument() noexcept;
     void ReselectLastTextSelection() noexcept;
     void createAndAddPageItem(int pageno, const QImage &image) noexcept;
-#ifdef WITH_IMAGE
     void renderImage() noexcept;
-#endif
     void renderPages() noexcept;
     void renderPage() noexcept;
     void handleTextHighlightRequested() noexcept;
@@ -576,10 +572,6 @@ private:
                           qreal pageH) noexcept;
     void visual_line_move(Direction direction) noexcept;
     void snapVisualLine(bool centerView = true) noexcept;
-#ifdef WITH_IMAGE
-    QTimer *m_anim_timer = nullptr;
-    QElapsedTimer m_anim_frame_clock;
-#endif
 
 #ifdef WITH_SYNCTEX
     void initSynctex() noexcept;

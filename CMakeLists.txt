@@ -4,7 +4,6 @@ project(lektra VERSION 0.7.2 LANGUAGES C CXX)
 include(GNUInstallDirs)
 
 option(WITH_DJVU    "Enable DjVu support" OFF)
-option(WITH_IMAGE   "Enable image support" ON)
 option(WITH_SYNCTEX "Enable synctex support" ON)
 option(WITH_LUA     "Enable lua scripting support" OFF)
 
@@ -137,7 +136,7 @@ endif()
 # Qt6 + optional system libraries
 # ---------------------------------------------------------------------------
 find_package(Qt6 REQUIRED COMPONENTS
-    Core Gui Widgets Concurrent LinguistTools OpenGLWidgets Network)
+    Core Gui Widgets Concurrent LinguistTools OpenGLWidgets Network Svg)
 
 if(WITH_DJVU)
     find_package(djvulibre CONFIG QUIET)
@@ -156,16 +155,6 @@ if (WITH_LUA)
     else()
         message(WARNING "Lua not found – Lua scripting support disabled")
         set(WITH_LUA OFF)
-    endif()
-endif()
-
-if (WITH_IMAGE)
-    find_package(ImageMagick QUIET COMPONENTS MagickCore Magick++)
-    if (ImageMagick_FOUND AND ImageMagick_MagickCore_FOUND AND ImageMagick_Magick++_FOUND)
-        message(STATUS "Image support: enabled (ImageMagick version: ${ImageMagick_VERSION_STRING})")
-    else()
-        message(WARNING "ImageMagick/Magick++ not found – image support disabled")
-        set(WITH_IMAGE OFF)
     endif()
 endif()
 
@@ -282,37 +271,12 @@ target_sources(${PROJECT_NAME} PRIVATE ${RESOURCES})
 # Link libraries
 # ---------------------------------------------------------------------------
 
-if(WITH_IMAGE)
-    if(ImageMagick_FOUND AND ImageMagick_MagickCore_FOUND AND ImageMagick_Magick++_FOUND)
-        target_include_directories(${PROJECT_NAME} PRIVATE
-            ${ImageMagick_INCLUDE_DIRS}
-            ${ImageMagick_MagickCore_INCLUDE_DIRS}
-            ${ImageMagick_Magick++_INCLUDE_DIRS}
-        )
-        target_link_libraries(${PROJECT_NAME} PRIVATE
-            ${ImageMagick_LIBRARIES}
-            ${ImageMagick_MagickCore_LIBRARIES}
-            ${ImageMagick_Magick++_LIBRARIES}
-        )
-        target_compile_definitions(${PROJECT_NAME} PRIVATE
-            WITH_IMAGE=1
-            MAGICKCORE_QUANTUM_DEPTH=16
-            MAGICKCORE_HDRI_ENABLE=1
-        )
-
-
-    else()
-        message(WARNING "ImageMagick/Magick++ not found – image support disabled")
-        set(WITH_IMAGE OFF)
-    endif()
-endif()
-
 add_dependencies(${PROJECT_NAME} mupdf_external)
 
 # --- Qt ---
 target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt6::Core Qt6::Gui Qt6::Widgets
-    Qt6::Concurrent Qt6::OpenGLWidgets Qt6::Network
+    Qt6::Concurrent Qt6::OpenGLWidgets Qt6::Network Qt6::Svg
 )
 
 # Qt6Network on Arch/Qt 6.11+ has an undeclared dep on libbrotlidec.
@@ -581,87 +545,6 @@ if(WIN32 AND WINDEPLOYQT_EXECUTABLE)
     " COMPONENT Runtime)
 endif()
 
-if(WIN32 AND WITH_IMAGE)
-    # Derive IM root from where find_package found the includes.
-    # The official IM installer puts headers directly in <root>/include,
-    # so we only need to go up one level.
-    get_filename_component(IM_ROOT "${ImageMagick_INCLUDE_DIRS}" DIRECTORY)
-
-    message(STATUS "ImageMagick root:    ${IM_ROOT}")
-    message(STATUS "ImageMagick include: ${ImageMagick_INCLUDE_DIRS}")
-
-    # Core DLLs (loader-resolved, must be next to the exe)
-    # Official IM installer places these directly in the root dir, not bin/
-    file(GLOB IM_CORE_DLLS
-        "${IM_ROOT}/CORE_RL_*.dll"
-        "${IM_ROOT}/FILTER_*.dll"
-        "${IM_ROOT}/bin/CORE_RL_*.dll"
-        "${IM_ROOT}/bin/FILTER_*.dll"
-    )
-
-    # Coder modules — loaded at runtime via LoadLibrary, NOT caught by windeployqt.
-    file(GLOB IM_CODER_DLLS
-        "${IM_ROOT}/modules/coders/IM_MOD_RL_*.dll"
-        "${IM_ROOT}/bin/modules/coders/IM_MOD_RL_*.dll"
-    )
-
-    # Config files (delegates.xml, policy.xml, magic.xml etc.)
-    set(IM_CONFIG_DIR "")
-    foreach(_cfgdir
-            "${IM_ROOT}"
-            "${IM_ROOT}/config"
-            "${IM_ROOT}/etc/ImageMagick-7"
-            "${IM_ROOT}/share/ImageMagick-7")
-        if(EXISTS "${_cfgdir}/policy.xml")
-            set(IM_CONFIG_DIR "${_cfgdir}")
-            break()
-        endif()
-    endforeach()
-
-    message(STATUS "IM core DLLs:   ${IM_CORE_DLLS}")
-    message(STATUS "IM coder DLLs:  ${IM_CODER_DLLS}")
-    message(STATUS "IM config dir:  ${IM_CONFIG_DIR}")
-
-    # --- Core DLLs ---
-    if(IM_CORE_DLLS)
-        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${IM_CORE_DLLS} $<TARGET_FILE_DIR:${PROJECT_NAME}>
-            COMMENT "Copying ImageMagick core DLLs..."
-        )
-        install(FILES ${IM_CORE_DLLS} DESTINATION bin)
-    else()
-        message(WARNING "No ImageMagick core DLLs found under ${IM_ROOT}/bin — check IM_ROOT above")
-    endif()
-
-    # --- Coder modules ---
-    if(IM_CODER_DLLS)
-        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E make_directory
-                "$<TARGET_FILE_DIR:${PROJECT_NAME}>/modules/coders"
-            COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                ${IM_CODER_DLLS}
-                "$<TARGET_FILE_DIR:${PROJECT_NAME}>/modules/coders/"
-            COMMENT "Copying ImageMagick coder modules..."
-        )
-        install(FILES ${IM_CODER_DLLS} DESTINATION bin/modules/coders)
-    else()
-        message(WARNING "No ImageMagick coder DLLs found — image formats will silently fail at runtime")
-    endif()
-
-    # --- Config files ---
-    if(IM_CONFIG_DIR)
-        add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-            COMMAND ${CMAKE_COMMAND} -E copy_directory
-                "${IM_CONFIG_DIR}"
-                "$<TARGET_FILE_DIR:${PROJECT_NAME}>/config"
-            COMMENT "Copying ImageMagick config files..."
-        )
-        install(DIRECTORY "${IM_CONFIG_DIR}/" DESTINATION bin/config)
-    else()
-        message(WARNING "No ImageMagick config dir found — delegates.xml/policy.xml missing")
-    endif()
-endif()
 
 if (NOT WIN32)
     find_package(ZLIB REQUIRED)

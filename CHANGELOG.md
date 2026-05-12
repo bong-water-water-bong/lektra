@@ -4,6 +4,7 @@
 
 ### Features
 
+- **Remove `ImageMagick` dependency as it's a headache to maintain and to link against for cross-platform compatibility.**
 - Add `collectHighlightTexts()` on `Model` returning a `std::vector<HighlightText>` with
   `page`, `text`, `comment`, and `quad` fields. Multi-line highlights are grouped into a
   single entry (lines joined with a space) rather than one entry per line.
@@ -13,6 +14,19 @@
 
 ### Bug Fixes
 
+- Fix crash when right-clicking on the overlay scrollbar — right-click events were
+  unconditionally forwarded to the scrollbar, causing its built-in context menu
+  (`QMenu::exec`) to spin a nested event loop while `GraphicsView::contextMenuEvent`
+  also fired, leading to a double-menu crash. Non-left-button clicks on the scrollbar
+  are now silently ignored.
+- Fix animated GIF frames being skipped: `QImageReader::read()` auto-advances the frame
+  position for animated formats, so the subsequent `jumpToNextImage()` call was
+  double-advancing and skipping every other frame.
+- Fix animated GIF playback running at ~1.5× speed: the elapsed clock was started before
+  the first timer fired, so the first callback measured ~100 ms of wait time as "render
+  overhead" and scheduled the next frame at 0 ms delay. Subsequent frames alternated
+  between 0 ms and ~95 ms, averaging half the intended interval. The clock is now
+  restarted at the top of each callback so it measures only actual render overhead.
 - Fix image files always rendering blurry: pixel dimensions were stored directly as
   typographic points in the page dimension cache, causing `pageSceneSize` and
   `repositionPages` to apply an extra ×(dpi/72) upscale on every render. Dimensions
@@ -23,6 +37,11 @@
   re-renders at the exact target dimensions using `Qt::SmoothTransformation`.
 
 ### Performance
+
+- Animated GIF memory usage reduced from O(all frames) to O(1 frame): switched from
+  pre-decoding every frame into a `QList<QImage>` buffer to `QMovie` with
+  `CacheMode::CacheNone`, which decodes one frame at a time on demand. The manual
+  timer and elapsed-clock machinery is replaced by `QMovie::frameChanged`.
 
 ### Breaking Changes
 

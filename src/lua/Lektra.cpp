@@ -96,11 +96,7 @@ Lektra::initLuaLektra() noexcept
     // lektra.capabilities.image
     lua_pushcfunction(m_L, [](lua_State *L) -> int
     {
-#ifdef WITH_IMAGE
         lua_pushboolean(L, true);
-#else
-        lua_pushboolean(L, false);
-#endif
         return 1;
     });
     lua_setfield(m_L, -2, "image");

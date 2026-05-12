@@ -2,7 +2,6 @@
 set -eu
 
 WITH_DJVU=${WITH_DJVU:-off}
-WITH_IMAGE=${WITH_IMAGE:-on}
 WITH_SYNCTEX=${WITH_SYNCTEX:-on}
 WITH_LUA=${WITH_LUA:-on}
 
@@ -39,7 +38,6 @@ cmake -S "$ROOT_DIR" -B "$BUILD_DIR" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/usr \
     -DWITH_LUA="$WITH_LUA" \
-    -DWITH_IMAGE="$WITH_IMAGE" \
     -DWITH_SYNCTEX="$WITH_SYNCTEX" \
     -DWITH_DJVU="$WITH_DJVU"
 
@@ -56,23 +54,6 @@ if [ -f "$DESKTOP_FILE" ]; then
 else
     echo "Error: desktop file missing: $DESKTOP_FILE" >&2
     exit 1
-fi
-
-# Bundle ImageMagick coder modules and config so IM can find them at runtime.
-# linuxdeploy does not pick up dlopen'd coder .so files automatically.
-if [ "$(echo "$WITH_IMAGE" | tr '[:upper:]' '[:lower:]')" = "on" ] \
-   && command -v Magick++-config >/dev/null 2>&1; then
-    IM_VER=$(Magick++-config --version | awk '{print $1}')
-    IM_SRC="/usr/lib/ImageMagick-${IM_VER}"
-    if [ -d "$IM_SRC" ]; then
-        cp -r "$IM_SRC" "$APPDIR/usr/lib/"
-        mkdir -p "$APPDIR/apprun-hooks"
-        printf '#!/bin/sh\nexport MAGICK_HOME="$APPDIR/usr"\n' \
-            > "$APPDIR/apprun-hooks/imagemagick.sh"
-        chmod +x "$APPDIR/apprun-hooks/imagemagick.sh"
-    else
-        echo "Warning: ImageMagick lib dir not found at $IM_SRC" >&2
-    fi
 fi
 
 ln -sf usr/bin/lektra "$APPDIR/AppRun"

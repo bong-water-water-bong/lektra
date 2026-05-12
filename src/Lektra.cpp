@@ -1463,11 +1463,7 @@ Lektra::updateUiEnabledState() noexcept
         auto *model = m_doc->model();
         filetype    = model->fileType();
         isPDF       = (filetype == Model::FileType::PDF);
-#ifdef WITH_IMAGE
         isImageDoc = model->isImage();
-#else
-        isImageDoc = false;
-#endif
 
         hasTextLayer = (filetype == Model::FileType::PDF
                         || filetype == Model::FileType::EPUB
@@ -3425,12 +3421,10 @@ Lektra::handleCurrentTabChanged(int index) noexcept
         return;
     }
 
-#ifdef WITH_IMAGE
     // Stop animation on all views in the outgoing tab
     if (auto *oldContainer = m_tab_widget->rootContainer(m_prev_tab_index))
         for (DocumentView *view : oldContainer->getAllViews())
             view->stopGifPlayback();
-#endif
 
     if (!validTabIndex(index))
     {
@@ -3449,12 +3443,10 @@ Lektra::handleCurrentTabChanged(int index) noexcept
     // Update m_doc to current view in the container
     setCurrentDocumentView(container->view());
 
-#ifdef WITH_IMAGE
     // Start animation on all views in the incoming tab
     for (DocumentView *view : container->getAllViews())
         if (view->model()->isAnimated())
             view->startGifPlayback();
-#endif
 
     m_prev_tab_index = index;
 
@@ -4129,11 +4121,7 @@ Lektra::updateStatusbar() noexcept
 
         const int numPages = model->numPages();
 
-#ifdef WITH_IMAGE
         const bool isImage = model->isImage();
-#else
-        const bool isImage = false;
-#endif
         if (numPages > 0)
         {
             m_statusbar->setPageInfoVisible(isImage);
@@ -5066,42 +5054,7 @@ Lektra::updateSelectionModeActions() noexcept
     if (!m_doc)
         return;
 
-    const auto filetype   = m_doc->model()->fileType();
-    const bool isImageDoc = [&]() noexcept
-    {
-#ifdef WITH_IMAGE
-        switch (filetype)
-        {
-            case Model::FileType::JPG:
-            case Model::FileType::PNG:
-            case Model::FileType::SVG:
-            case Model::FileType::TIFF:
-            case Model::FileType::APNG:
-            case Model::FileType::BMP:
-            case Model::FileType::GIF:
-            case Model::FileType::WEBP:
-            case Model::FileType::AVIF:
-            case Model::FileType::HEIC:
-            case Model::FileType::JXL:
-            case Model::FileType::QOI:
-            case Model::FileType::PSD:
-            case Model::FileType::EXR:
-            case Model::FileType::HDR:
-            case Model::FileType::TGA:
-            case Model::FileType::ICO:
-            case Model::FileType::PPM:
-            case Model::FileType::PGM:
-            case Model::FileType::PBM:
-            case Model::FileType::PCX:
-                return true;
-            default:
-                return false;
-        }
-#else
-        Q_UNUSED(filetype);
-        return false;
-#endif
-    }();
+    const bool isImageDoc = m_doc->model()->isImage();
 
     if (isImageDoc)
     {

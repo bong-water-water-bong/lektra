@@ -7,6 +7,7 @@
 
 #include <QFile>
 #include <QImageReader>
+#include <QMovie>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -20,9 +21,6 @@
 #include <qtextformat.h>
 #include <unordered_set>
 
-#ifdef WITH_IMAGE
-    #include <Magick++.h>
-
 static bool
 isImageFormat(Model::FileType ft) noexcept
 {
@@ -35,47 +33,17 @@ isImageFormat(Model::FileType ft) noexcept
         case Model::FileType::GIF:
         case Model::FileType::WEBP:
         case Model::FileType::TIFF:
-        case Model::FileType::AVIF:
-        case Model::FileType::HEIC:
-        case Model::FileType::JXL:
-        case Model::FileType::QOI:
-        case Model::FileType::PSD:
-        case Model::FileType::EXR:
-        case Model::FileType::HDR:
         case Model::FileType::TGA:
         case Model::FileType::ICO:
         case Model::FileType::PPM:
         case Model::FileType::PGM:
         case Model::FileType::PBM:
-        case Model::FileType::PCX:
         case Model::FileType::SVG:
             return true;
         default:
             return false;
     }
 }
-
-static QImage
-toQImage(Magick::Image img)
-{
-    #if MagickLibVersion >= 0x700
-    img.alpha(true);
-    #else
-    img.matte(true);
-    #endif
-    img.depth(8);
-
-    const size_t w = img.columns();
-    const size_t h = img.rows();
-
-    Magick::Blob blob;
-    img.write(&blob, "RGBA");
-
-    const uchar *src = static_cast<const uchar *>(blob.data());
-    QImage qi(src, (int)w, (int)h, (int)(w * 4), QImage::Format_RGBA8888);
-    return qi.copy();
-};
-#endif
 
 static std::array<std::mutex, FZ_LOCK_MAX> mupdf_mutexes;
 
@@ -846,18 +814,16 @@ Model::~Model() noexcept
 
 #ifdef HAS_DJVU
     if (m_filetype == FileType::DJVU)
+    {
         cleanup_djvu();
-    #ifdef WITH_IMAGE
+    }
+    else
+#endif
     if (m_is_image)
+    {
         cleanup_image();
-    #endif
+    }
     else
-#endif
-#if !defined(HAS_DJVU) && defined(WITH_IMAGE)
-        if (m_is_image)
-        cleanup_image();
-    else
-#endif
     {
         cleanup_mupdf();
     }
@@ -903,21 +869,21 @@ Model::cleanup_mupdf() noexcept
     fz_empty_store(m_ctx);
 }
 
-#ifdef WITH_IMAGE
 void
 Model::cleanup_image() noexcept
 {
     m_image_cache = QImage();
     m_is_image    = false;
     m_is_animated = false;
-    m_animated_frames.clear();
-    m_frame_delays_ms.clear();
-    m_frame_count   = 0;
-    m_current_frame = 0;
+    if (m_movie)
+    {
+        m_movie->stop();
+        delete m_movie;
+        m_movie = nullptr;
+    }
     m_page_dim_cache.reset(0);
     m_default_page_dim = {};
 }
-#endif
 
 #ifdef HAS_DJVU
 void
@@ -957,9 +923,7 @@ Model::openAsync(const QString &filePath) noexcept
     // fast for unsupported types without incurring the overhead of starting a
     // thread and cloning the context.
     m_filetype = getFileType(canonPath);
-#ifdef WITH_IMAGE
     m_is_image = isImageFormat(m_filetype);
-#endif
 
     if (m_filetype == FileType::NONE)
     {
@@ -973,79 +937,31 @@ Model::openAsync(const QString &filePath) noexcept
         return openAsync_djvu(canonPath);
 #endif
 
-#ifdef WITH_IMAGE
     if (m_is_image)
         return openAsync_image(canonPath);
-#endif
 
     return openAsync_mupdf(canonPath);
 }
 
-#ifdef WITH_IMAGE
 QFuture<void>
 Model::openAsync_image(const QString &canonPath) noexcept
 {
     return QtConcurrent::run([this, canonPath]
     {
-        Magick::InitializeMagick(nullptr);
+        QImageReader reader(canonPath);
+        reader.setAutoTransform(true);
 
-        const QByteArray pathBytes = canonPath.toUtf8();
-        const std::string pathStr(pathBytes.constData(), pathBytes.size());
-
-        auto delayMs = [](const Magick::Image &img) -> int
-        {
-            int ms = static_cast<int>(img.animationDelay() * 10);
-            return ms < 20 ? 100 : ms;
-        };
-
-        // ── Step 1: Ping for metadata — no pixel I/O ─────────────
-        // pingImages reads only headers: frame count, delays, canvas size.
-        // For a 200-frame GIF this completes in milliseconds.
-        std::vector<Magick::Image> pings;
-        try
-        {
-    #if MagickLibVersion >= 0x700
-            Magick::pingImages(&pings, pathStr);
-    #else
-            Magick::Image img;
-            img.ping(pathStr);
-            pings.push_back(img);
-    #endif
-        }
-        catch (const Magick::Exception &e)
-        {
-            qWarning() << "ImageMagick ping failed:" << e.what();
-            QMetaObject::invokeMethod(this, &Model::openFileFailed,
-                                      Qt::QueuedConnection);
-            return;
-        }
-
-        if (pings.empty())
+        if (!reader.canRead())
         {
             QMetaObject::invokeMethod(this, &Model::openFileFailed,
                                       Qt::QueuedConnection);
             return;
         }
 
-        const int frameCount = static_cast<int>(pings.size());
+        const int frameCount = qMax(1, reader.imageCount());
+        const bool animated  = frameCount > 1;
 
-        // Using the [0] scene specifier avoids reading all frames up front.
-        // Frame 0 of any valid animated image is always a complete canvas
-        // image, so no coalescing is needed for the initial display.
-        Magick::Image firstImg;
-        try
-        {
-            firstImg.read(pathStr + "[0]");
-        }
-        catch (const Magick::Exception &e)
-        {
-            qWarning() << "ImageMagick read frame 0 failed:" << e.what();
-            QMetaObject::invokeMethod(this, &Model::openFileFailed,
-                                      Qt::QueuedConnection);
-            return;
-        }
-
-        QImage first = toQImage(std::move(firstImg));
+        QImage first = reader.read();
         if (first.isNull())
         {
             QMetaObject::invokeMethod(this, &Model::openFileFailed,
@@ -1056,8 +972,7 @@ Model::openAsync_image(const QString &canonPath) noexcept
         const float w = static_cast<float>(first.width());
         const float h = static_cast<float>(first.height());
 
-        // ── Static image (single frame) ───────────────────────────
-        if (frameCount == 1)
+        if (!animated)
         {
             QMetaObject::invokeMethod(
                 this, [this, first = std::move(first), w, h]() mutable
@@ -1067,8 +982,6 @@ Model::openAsync_image(const QString &canonPath) noexcept
                 m_is_animated      = false;
                 m_success          = true;
                 m_page_count       = 1;
-                // Convert pixel dims to pts so the DPI-based scale in
-                // pageSceneSize / repositionPages cancels out cleanly.
                 m_default_page_dim = {w * 72.0f / m_dpi, h * 72.0f / m_dpi};
                 m_page_dim_cache.dimensions.assign(1, m_default_page_dim);
                 m_page_dim_cache.known.assign(1, true);
@@ -1078,17 +991,10 @@ Model::openAsync_image(const QString &canonPath) noexcept
             return;
         }
 
-        // ── Collect delays from ping metadata (no pixel cost) ─────
-        QList<int> delays;
-        delays.reserve(frameCount);
-        for (const auto &p : pings)
-            delays.push_back(delayMs(p));
-        pings.clear();
-
-        // The UI becomes responsive immediately; remaining frames are decoded
-        // in the background below and stored as they finish.
+        // Animated: hand off to QMovie — it decodes one frame at a time,
+        // keeping memory at O(1 frame) instead of O(all frames).
         QMetaObject::invokeMethod(
-            this, [this, first, delays, frameCount, w, h]() mutable
+            this, [this, canonPath, w, h]()
         {
             cleanup_image();
             m_is_image         = true;
@@ -1098,53 +1004,12 @@ Model::openAsync_image(const QString &canonPath) noexcept
             m_default_page_dim = {w * 72.0f / m_dpi, h * 72.0f / m_dpi};
             m_page_dim_cache.dimensions.assign(1, m_default_page_dim);
             m_page_dim_cache.known.assign(1, true);
-            m_frame_delays_ms = delays;
-            m_frame_count     = frameCount;
-            m_current_frame   = 0;
-            m_animated_frames.resize(frameCount);
-            m_animated_frames[0] = std::move(first);
+            m_movie = new QMovie(canonPath);
+            m_movie->setCacheMode(QMovie::CacheNone);
             emit openFileFinished();
         }, Qt::QueuedConnection);
-
-        // readImages + coalesceImages happen here, off the UI thread.
-        // Each frame is posted to the UI thread as it finishes so the
-        // animation improves progressively rather than all-at-once.
-        auto _ = QtConcurrent::run([this, pathStr, frameCount]()
-        {
-            try
-            {
-                std::vector<Magick::Image> frames;
-                Magick::readImages(&frames, pathStr);
-                if (frames.empty())
-                    return;
-
-                std::vector<Magick::Image> coalesced;
-                Magick::coalesceImages(&coalesced, frames.begin(),
-                                       frames.end());
-                frames.clear(); // free raw frames as soon as coalescing is done
-
-                for (int i = 1;
-                     i < static_cast<int>(coalesced.size()) && i < frameCount;
-                     ++i)
-                {
-                    QImage img = toQImage(std::move(coalesced[i]));
-                    QMetaObject::invokeMethod(
-                        this, [this, i, img = std::move(img)]() mutable
-                    {
-                        if (i < m_animated_frames.size())
-                            m_animated_frames[i] = std::move(img);
-                    }, Qt::QueuedConnection);
-                }
-            }
-            catch (const Magick::Exception &e)
-            {
-                qWarning() << "Background frame decode failed:" << e.what();
-            }
-        });
     });
 }
-
-#endif
 
 #ifdef HAS_DJVU
 QFuture<void>
@@ -1193,9 +1058,7 @@ Model::openAsync_djvu(const QString &canonPath) noexcept
             m_render_cancelled.store(false, std::memory_order_release);
             cleanup_mupdf(); // drops MuPDF state
             cleanup_djvu();  // drops any previous DjVu state
-    #ifdef WITH_IMAGE
             cleanup_image();
-    #endif
 
             m_ddjvu_ctx  = ctx;
             m_ddjvu_doc  = doc;
@@ -1373,9 +1236,7 @@ Model::_continueOpen(fz_context *ctx, fz_document *doc) noexcept
 #ifdef HAS_DJVU
         cleanup_djvu();
 #endif
-#ifdef WITH_IMAGE
         cleanup_image();
-#endif
         fz_drop_context(m_ctx);
 
         m_ctx        = ctx;
@@ -1409,13 +1270,11 @@ Model::close() noexcept
         return;
     }
 #endif
-#ifdef WITH_IMAGE
     if (m_is_image)
     {
         cleanup_image();
         return;
     }
-#endif
     cleanup_mupdf();
 }
 
@@ -2357,7 +2216,6 @@ Model::createRenderJob(int pageno) const noexcept
     return job;
 }
 
-#ifdef WITH_IMAGE
 QImage
 Model::requestImageRender(bool highQuality) noexcept
 {
@@ -2367,12 +2225,11 @@ Model::requestImageRender(bool highQuality) noexcept
     // 1. Handle Animated Images
     if (m_is_animated)
     {
-        if (m_current_frame < 0 || m_current_frame >= m_animated_frames.size())
+        if (!m_movie)
             return {};
-        const QImage &src = m_animated_frames[m_current_frame];
-        if (src.isNull())
+        QImage frame = m_movie->currentImage();
+        if (frame.isNull())
             return {};
-        QImage frame = src;
         if (m_rotation != 0)
         {
             QTransform trans;
@@ -2453,7 +2310,6 @@ Model::requestImageRender(bool highQuality) noexcept
 
     return result;
 }
-#endif
 
 void
 Model::requestPageRender(
@@ -4690,7 +4546,6 @@ Model::getFileType(const QString &path) noexcept
         return FileType::DJVU;
 #endif
 
-#ifdef WITH_IMAGE
     // Images
     if (name == "image/jpeg")
         return FileType::JPG;
@@ -4707,20 +4562,6 @@ Model::getFileType(const QString &path) noexcept
         return FileType::GIF;
     if (name == "image/webp")
         return FileType::WEBP;
-    if (name == "image/avif")
-        return FileType::AVIF;
-    if (name == "image/heic" || name == "image/heif")
-        return FileType::HEIC;
-    if (name == "image/jxl")
-        return FileType::JXL;
-    if (name == "image/x-qoi")
-        return FileType::QOI;
-    if (name == "image/vnd.adobe.photoshop" || name == "image/x-photoshop")
-        return FileType::PSD;
-    if (name == "image/x-exr" || name == "image/x-openexr")
-        return FileType::EXR;
-    if (name == "image/vnd.radiance" || name == "image/x-hdr")
-        return FileType::HDR;
     if (name == "image/x-tga" || name == "image/x-targa")
         return FileType::TGA;
     if (name == "image/vnd.microsoft.icon" || name == "image/x-ico")
@@ -4731,9 +4572,6 @@ Model::getFileType(const QString &path) noexcept
         return FileType::PGM;
     if (name == "image/x-portable-bitmap")
         return FileType::PBM;
-    if (name == "image/x-pcx")
-        return FileType::PCX;
-#endif
 
     return FileType::NONE;
 }
@@ -4751,10 +4589,8 @@ Model::setZoom(float zoom) noexcept
     }
 #endif
 
-#ifdef WITH_IMAGE
     if (m_is_image)
         invalidatePageCaches();
-#endif
 }
 
 void
@@ -4772,10 +4608,8 @@ Model::rotateClock() noexcept
     }
 #endif
 
-#ifdef WITH_IMAGE
     if (m_is_image)
         invalidatePageCaches();
-#endif
 }
 
 void
@@ -4793,10 +4627,8 @@ Model::rotateAnticlock() noexcept
     }
 #endif
 
-#ifdef WITH_IMAGE
     if (m_is_image)
         invalidatePageCaches();
-#endif
 }
 
 int
@@ -4832,16 +4664,6 @@ Model::waitForPendingRenders() noexcept
     { return m_active_renders.load(std::memory_order_acquire) == 0; });
 }
 
-#ifdef WITH_IMAGE
-
-void
-Model::setCurrentAnimFrame(int index) noexcept
-{
-    if (index < 0 || index >= m_frame_count)
-        return;
-    m_current_frame = index;
-}
-#endif
 
 QString
 Model::fileTypeToString() const noexcept
@@ -4864,7 +4686,6 @@ Model::fileTypeToString() const noexcept
         case FileType::DJVU:
             return "DJVU";
 #endif
-#ifdef WITH_IMAGE
         case FileType::JPG:
             return "JPEG";
         case FileType::PNG:
@@ -4879,20 +4700,6 @@ Model::fileTypeToString() const noexcept
             return "GIF";
         case FileType::WEBP:
             return "WEBP";
-        case FileType::AVIF:
-            return "AVIF";
-        case FileType::HEIC:
-            return "HEIC/HEIF";
-        case FileType::JXL:
-            return "JPEG XL";
-        case FileType::QOI:
-            return "QOI";
-        case FileType::PSD:
-            return "PSD";
-        case FileType::EXR:
-            return "EXR";
-        case FileType::HDR:
-            return "HDR";
         case FileType::TGA:
             return "TGA";
         case FileType::ICO:
@@ -4903,9 +4710,6 @@ Model::fileTypeToString() const noexcept
             return "PGM";
         case FileType::PBM:
             return "PBM";
-        case FileType::PCX:
-            return "PCX";
-#endif
         default:
             return "Unknown";
     }

@@ -235,21 +235,6 @@ int
 main(int argc, char *argv[])
 {
 
-#if defined(WITH_IMAGE) && defined(_WIN32)
-    // Must be set before QApplication and InitializeMagick so IM
-    // locates its coders and config relative to the exe, not a system install.
-    // Without this, image loading silently fails on user machines.
-    const std::string appDir = []() {
-        char buf[MAX_PATH];
-        GetModuleFileNameA(nullptr, buf, MAX_PATH);
-        std::string path(buf);
-        return path.substr(0, path.find_last_of("\\/"));
-    }();
-    SetEnvironmentVariableA("MAGICK_HOME",              appDir.c_str());
-    SetEnvironmentVariableA("MAGICK_CODER_MODULE_PATH", (appDir + "\\modules\\coders").c_str());
-    SetEnvironmentVariableA("MAGICK_CONFIG_PATH",       appDir.c_str());
-#endif
-
     argparse::ArgumentParser program("lektra", APP_VERSION,
                                      argparse::default_arguments::all);
     init_args(program);
