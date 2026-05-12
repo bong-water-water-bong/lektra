@@ -6,7 +6,7 @@ include(GNUInstallDirs)
 option(WITH_DJVU    "Enable DjVu support" OFF)
 option(WITH_SYNCTEX "Enable synctex support" ON)
 option(WITH_LUA     "Enable lua scripting support" OFF)
-option(WITH_LIBRSVG "Enable librsvg SVG rendering" OFF)
+
 
 # ---------------------------------------------------------------------------
 # Build type default
@@ -159,18 +159,7 @@ if (WITH_LUA)
     endif()
 endif()
 
-if(WITH_LIBRSVG)
-    find_package(PkgConfig QUIET)
-    if(PKG_CONFIG_FOUND)
-        pkg_check_modules(LIBRSVG QUIET librsvg-2.0)
-    endif()
-    if(LIBRSVG_FOUND)
-        message(STATUS "librsvg support: enabled (${LIBRSVG_VERSION})")
-    else()
-        message(WARNING "librsvg-2.0 not found – librsvg SVG support disabled")
-        set(WITH_LIBRSVG OFF)
-    endif()
-endif()
+message(STATUS "librsvg support: runtime probe (uses librsvg-2.so.2 + libcairo.so.2 if installed)")
 
 
 # ---------------------------------------------------------------------------
@@ -354,12 +343,6 @@ if(DJVULIBRE_FOUND)
     target_link_libraries(${PROJECT_NAME} PRIVATE ${DJVULIBRE_LIBRARIES})
 endif()
 
-# --- librsvg ---
-if(WITH_LIBRSVG AND LIBRSVG_FOUND)
-    target_include_directories(${PROJECT_NAME} PRIVATE ${LIBRSVG_INCLUDE_DIRS})
-    target_compile_definitions(${PROJECT_NAME} PRIVATE WITH_LIBRSVG=1)
-    target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRSVG_LINK_LIBRARIES})
-endif()
 
 # ---------------------------------------------------------------------------
 # Per-config compile/link options

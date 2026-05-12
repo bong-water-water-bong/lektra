@@ -10,11 +10,7 @@
 #include <QMovie>
 #include <QPainter>
 #include <QSvgRenderer>
-#ifdef WITH_LIBRSVG
-    #undef signals
-    #include <librsvg/rsvg.h>
-// #define signals
-#endif
+#include <QLibrary>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -27,6 +23,88 @@
 #include <qstyle.h>
 #include <qtextformat.h>
 #include <unordered_set>
+
+namespace {
+
+struct RsvgRect { double x, y, w, h; };
+struct GErr     { int domain, code; char *msg; };
+
+using PFN_rsvg_new     = void *(*)(const char *, GErr **);
+using PFN_rsvg_size    = int   (*)(void *, double *, double *);
+using PFN_rsvg_render  = int   (*)(void *, void *, const RsvgRect *, GErr **);
+using PFN_g_unref      = void  (*)(void *);
+using PFN_g_errfree    = void  (*)(GErr *);
+using PFN_surf_new     = void *(*)(int, int, int);
+using PFN_cr_new       = void *(*)(void *);
+using PFN_cr_destroy   = void  (*)(void *);
+using PFN_surf_flush   = void  (*)(void *);
+using PFN_surf_destroy = void  (*)(void *);
+using PFN_surf_data    = unsigned char *(*)(void *);
+using PFN_surf_stride  = int   (*)(void *);
+
+struct RsvgLib
+{
+    PFN_rsvg_new     new_from_file = nullptr;
+    PFN_rsvg_size    get_size      = nullptr;
+    PFN_rsvg_render  render        = nullptr;
+    PFN_g_unref      g_unref       = nullptr;
+    PFN_g_errfree    g_errfree     = nullptr;
+    PFN_surf_new     surf_new      = nullptr;
+    PFN_cr_new       cr_new        = nullptr;
+    PFN_cr_destroy   cr_destroy    = nullptr;
+    PFN_surf_flush   surf_flush    = nullptr;
+    PFN_surf_destroy surf_destroy  = nullptr;
+    PFN_surf_data    surf_data     = nullptr;
+    PFN_surf_stride  surf_stride   = nullptr;
+    bool             ok            = false;
+
+    static RsvgLib &get() noexcept
+    {
+        static RsvgLib s;
+        return s;
+    }
+
+private:
+#if defined(Q_OS_WIN)
+    // MSYS2/vcpkg ship these names on Windows
+    QLibrary rsvg_lib{"librsvg-2-2"};
+    QLibrary cairo_lib{"libcairo-2"};
+#else
+    // "rsvg-2", 2  →  librsvg-2.so.2  (Linux) / librsvg-2.2.dylib (macOS)
+    // "cairo",  2  →  libcairo.so.2   (Linux) / libcairo.2.dylib   (macOS)
+    QLibrary rsvg_lib{"rsvg-2", 2};
+    QLibrary cairo_lib{"cairo", 2};
+#endif
+
+    RsvgLib() noexcept
+    {
+        if (!rsvg_lib.load() || !cairo_lib.load())
+            return;
+
+#define LOADSYM(lib, field, sym)                                            \
+        field = reinterpret_cast<decltype(field)>(lib.resolve(sym));        \
+        if (!field) return;
+
+        // g_object_unref / g_error_free live in gobject/glib which are
+        // transitive deps of librsvg, so rsvg_lib.resolve() finds them.
+        LOADSYM(rsvg_lib,  new_from_file, "rsvg_handle_new_from_file")
+        LOADSYM(rsvg_lib,  get_size,      "rsvg_handle_get_intrinsic_size_in_pixels")
+        LOADSYM(rsvg_lib,  render,        "rsvg_handle_render_document")
+        LOADSYM(rsvg_lib,  g_unref,       "g_object_unref")
+        LOADSYM(rsvg_lib,  g_errfree,     "g_error_free")
+        LOADSYM(cairo_lib, surf_new,      "cairo_image_surface_create")
+        LOADSYM(cairo_lib, cr_new,        "cairo_create")
+        LOADSYM(cairo_lib, cr_destroy,    "cairo_destroy")
+        LOADSYM(cairo_lib, surf_flush,    "cairo_surface_flush")
+        LOADSYM(cairo_lib, surf_destroy,  "cairo_surface_destroy")
+        LOADSYM(cairo_lib, surf_data,     "cairo_image_surface_get_data")
+        LOADSYM(cairo_lib, surf_stride,   "cairo_image_surface_get_stride")
+#undef LOADSYM
+        ok = true;
+    }
+};
+
+} // namespace
 
 static bool
 isImageFormat(Model::FileType ft) noexcept
@@ -957,69 +1035,66 @@ Model::openAsync_image(const QString &canonPath) noexcept
     {
         if (m_filetype == FileType::SVG)
         {
-#ifdef WITH_LIBRSVG
-            GError *gerr       = nullptr;
-            RsvgHandle *handle = rsvg_handle_new_from_file(
-                canonPath.toUtf8().constData(), &gerr);
-            if (!handle)
+            QImage img;
+            int iw = 0, ih = 0;
+            bool svg_rendered = false;
+            auto &rsvg = RsvgLib::get();
+            if (rsvg.ok)
             {
+                GErr *gerr   = nullptr;
+                void *handle = rsvg.new_from_file(
+                    canonPath.toUtf8().constData(), &gerr);
+                if (!handle)
+                {
+                    if (gerr) rsvg.g_errfree(gerr);
+                    QMetaObject::invokeMethod(this, &Model::openFileFailed,
+                                              Qt::QueuedConnection);
+                    return;
+                }
+                double w_d = 0, h_d = 0;
+                if (!rsvg.get_size(handle, &w_d, &h_d) || w_d <= 0 || h_d <= 0)
+                    w_d = 800, h_d = 600;
+                iw = static_cast<int>(w_d);
+                ih = static_cast<int>(h_d);
+                void *surf = rsvg.surf_new(0 /*CAIRO_FORMAT_ARGB32*/, iw, ih);
+                void *cr   = rsvg.cr_new(surf);
+                RsvgRect vp = {0.0, 0.0, w_d, h_d};
+                gerr = nullptr;
+                rsvg.render(handle, cr, &vp, &gerr);
+                rsvg.cr_destroy(cr);
+                rsvg.g_unref(handle);
                 if (gerr)
-                    g_error_free(gerr);
-                QMetaObject::invokeMethod(this, &Model::openFileFailed,
-                                          Qt::QueuedConnection);
-                return;
+                {
+                    rsvg.g_errfree(gerr);
+                    rsvg.surf_destroy(surf);
+                    QMetaObject::invokeMethod(this, &Model::openFileFailed,
+                                              Qt::QueuedConnection);
+                    return;
+                }
+                rsvg.surf_flush(surf);
+                img = QImage(rsvg.surf_data(surf), iw, ih,
+                             rsvg.surf_stride(surf),
+                             QImage::Format_ARGB32_Premultiplied).copy();
+                rsvg.surf_destroy(surf);
+                svg_rendered = true;
             }
-            gdouble w_d = 0, h_d = 0;
-            if (!rsvg_handle_get_intrinsic_size_in_pixels(handle, &w_d, &h_d)
-                || w_d <= 0 || h_d <= 0)
+            if (!svg_rendered)
             {
-                w_d = 800;
-                h_d = 600;
-            }
-            const int iw = static_cast<int>(w_d);
-            const int ih = static_cast<int>(h_d);
-            cairo_surface_t *surf
-                = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, iw, ih);
-            cairo_t *cr      = cairo_create(surf);
-            RsvgRectangle vp = {0.0, 0.0, w_d, h_d};
-            gerr             = nullptr;
-            rsvg_handle_render_document(handle, cr, &vp, &gerr);
-            cairo_destroy(cr);
-            g_object_unref(handle);
-            if (gerr)
-            {
-                g_error_free(gerr);
-                cairo_surface_destroy(surf);
-                QMetaObject::invokeMethod(this, &Model::openFileFailed,
-                                          Qt::QueuedConnection);
-                return;
-            }
-            cairo_surface_flush(surf);
-            QImage img(cairo_image_surface_get_data(surf), iw, ih,
-                       cairo_image_surface_get_stride(surf),
-                       QImage::Format_ARGB32_Premultiplied);
-            img = img.copy();
-            cairo_surface_destroy(surf);
-#else
-            QSvgRenderer renderer(canonPath);
-            if (!renderer.isValid())
-            {
-                QMetaObject::invokeMethod(this, &Model::openFileFailed,
-                                          Qt::QueuedConnection);
-                return;
-            }
-            QSize sz = renderer.defaultSize();
-            if (sz.isEmpty())
-                sz = QSize(800, 600);
-            QImage img(sz, QImage::Format_ARGB32);
-            img.fill(Qt::transparent);
-            {
+                QSvgRenderer renderer(canonPath);
+                if (!renderer.isValid())
+                {
+                    QMetaObject::invokeMethod(this, &Model::openFileFailed,
+                                              Qt::QueuedConnection);
+                    return;
+                }
+                QSize sz = renderer.defaultSize();
+                if (sz.isEmpty()) sz = QSize(800, 600);
+                iw = sz.width(); ih = sz.height();
+                img = QImage(sz, QImage::Format_ARGB32);
+                img.fill(Qt::transparent);
                 QPainter p(&img);
                 renderer.render(&p);
             }
-            const int iw = sz.width();
-            const int ih = sz.height();
-#endif
             const float fw = static_cast<float>(iw);
             const float fh = static_cast<float>(ih);
             QMetaObject::invokeMethod(
