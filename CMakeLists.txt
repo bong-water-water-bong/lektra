@@ -3,9 +3,10 @@ project(lektra VERSION 0.7.2 LANGUAGES C CXX)
 
 include(GNUInstallDirs)
 
-option(WITH_IMAGE "Enable image support" ON)
+option(WITH_DJVU    "Enable DjVu support" OFF)
+option(WITH_IMAGE   "Enable image support" ON)
 option(WITH_SYNCTEX "Enable synctex support" ON)
-option(WITH_LUA "Enable lua scripting support" OFF)
+option(WITH_LUA     "Enable lua scripting support" OFF)
 
 # ---------------------------------------------------------------------------
 # Build type default
@@ -138,7 +139,15 @@ endif()
 find_package(Qt6 REQUIRED COMPONENTS
     Core Gui Widgets Concurrent LinguistTools OpenGLWidgets Network)
 
-find_package(djvulibre CONFIG QUIET)
+if(WITH_DJVU)
+    find_package(djvulibre CONFIG QUIET)
+    if(DJVULIBRE_FOUND)
+        message(STATUS "DjVu support: enabled (djvulibre found)")
+    else()
+        message(WARNING "djvulibre not found – DjVu support disabled")
+        set(WITH_DJVU OFF)
+    endif()
+endif()
 
 if (WITH_LUA)
     find_package(Lua QUIET)
@@ -160,9 +169,6 @@ if (WITH_IMAGE)
     endif()
 endif()
 
-if(NOT DJVULIBRE_FOUND)
-    message(WARNING "DjVuLibre not found – DjVu support disabled")
-endif()
 
 # ---------------------------------------------------------------------------
 # Source files
