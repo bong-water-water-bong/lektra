@@ -58,7 +58,7 @@ fi
 
 ln -sf usr/bin/lektra "$APPDIR/AppRun"
 
-export EXTRA_QT_PLUGINS="waylandcompositor"
+export EXTRA_QT_PLUGINS="waylandcompositor;imageformats"
 export EXTRA_PLATFORM_PLUGINS="libqwayland-egl.so;libqwayland-generic.so"
 export QMAKE=qmake6
 export APPIMAGE_EXTRACT_AND_RUN=1
