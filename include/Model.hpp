@@ -23,12 +23,6 @@ extern "C"
 #include <mupdf/fitz/geometry.h>
 #include <mupdf/fitz/image.h>
 #include <mupdf/pdf.h>
-
-#ifdef HAS_DJVU
-    #include <libdjvu/ddjvuapi.h>
-    #include <libdjvu/miniexp.h>
-
-#endif
 }
 
 // Forward declaration
@@ -52,9 +46,7 @@ public:
     {
         NONE = 0,
         PDF,
-#ifdef HAS_DJVU
         DJVU,
-#endif
         XPS,
         CBZ,
         EPUB,
@@ -211,20 +203,13 @@ public:
     inline bool supports_outline() const noexcept
     {
         return m_filetype == FileType::PDF || m_filetype == FileType::EPUB
-               || m_filetype == FileType::XPS || m_filetype == FileType::FB2 ||
-#ifdef HAS_DJVU
-               m_filetype == FileType::DJVU ||
-#endif
-               m_filetype == FileType::MOBI;
+               || m_filetype == FileType::XPS || m_filetype == FileType::FB2
+               || m_filetype == FileType::DJVU || m_filetype == FileType::MOBI;
     }
 
     inline bool supports_metadata() const noexcept
     {
-#ifdef HAS_DJVU
-        return supports_outline() || m_filetype == FileType::DJVU;
-#else
         return supports_outline();
-#endif
     }
 
     inline bool supports_annotations() const noexcept
@@ -348,16 +333,9 @@ public:
 
     inline bool hasUnsavedChanges() const noexcept
     {
-        // If the undo stack says we are at the 'save point', it's clean.
-        // return !m_undo_stack->isClean();
-
-#ifdef HAS_DJVU
-        if (m_filetype != FileType::DJVU)
-            return pdf_has_unsaved_changes(m_ctx, m_pdf_doc);
-        return false;
-#else
+        if (m_filetype == FileType::DJVU)
+            return false;
         return pdf_has_unsaved_changes(m_ctx, m_pdf_doc);
-#endif
     }
 
     // This is the "Logical" scale for the UI
@@ -449,9 +427,7 @@ public:
     QFuture<void> openAsync(const QString &filePath) noexcept;
 
     QFuture<void> openAsync_mupdf(const QString &canonicalPath) noexcept;
-#ifdef HAS_DJVU
     QFuture<void> openAsync_djvu(const QString &canonicalPath) noexcept;
-#endif
     QFuture<void> openAsync_image(const QString &canonicalPath) noexcept;
     void cleanup_image() noexcept;
     void _continueOpen(fz_context *ctx, fz_document *doc) noexcept;
@@ -459,9 +435,7 @@ public:
     QFuture<void> submitPassword(const QString &password) noexcept;
     void close() noexcept;
     void cleanup_mupdf() noexcept;
-#ifdef HAS_DJVU
     void cleanup_djvu() noexcept;
-#endif
     bool decrypt() noexcept;
     bool encrypt(const EncryptInfo &info) noexcept;
     void setPopupColor(const QColor &color) noexcept;
@@ -669,9 +643,7 @@ private:
     std::pair<fz_matrix, fz_matrix>
     buildPageTransforms(int pageno) const noexcept;
     void buildPageCache(int pageno) noexcept;
-#ifdef HAS_DJVU
     void buildPageCache_djvu(int pageno) noexcept;
-#endif
     int addRectAnnotation(const int pageno, const fz_rect &rect,
                           const QString &content = {}) noexcept;
     int addHighlightAnnotation(const int pageno,
@@ -731,10 +703,8 @@ private:
     fz_colorspace *m_colorspace = nullptr;
     fz_outline *m_outline       = nullptr;
 
-#ifdef HAS_DJVU
-    ddjvu_context_t *m_ddjvu_ctx  = nullptr;
-    ddjvu_document_t *m_ddjvu_doc = nullptr;
-#endif
+    void *m_ddjvu_ctx = nullptr;
+    void *m_ddjvu_doc = nullptr;
 
     // For use with visual line mode
     struct VisualLineInfo

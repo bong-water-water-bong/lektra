@@ -7,13 +7,13 @@
 
 #include <QFile>
 #include <QImageReader>
-#include <QMovie>
-#include <QPainter>
-#include <QSvgRenderer>
-#include <QLibrary>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLibrary>
+#include <QMovie>
+#include <QPainter>
+#include <QSvgRenderer>
 #include <QtConcurrent/QtConcurrent>
 #include <algorithm>
 #include <array>
@@ -24,39 +24,47 @@
 #include <qtextformat.h>
 #include <unordered_set>
 
-namespace {
+namespace
+{
 
-struct RsvgRect { double x, y, w, h; };
-struct GErr     { int domain, code; char *msg; };
+struct RsvgRect
+{
+    double x, y, w, h;
+};
+struct GErr
+{
+    int domain, code;
+    char *msg;
+};
 
 using PFN_rsvg_new     = void *(*)(const char *, GErr **);
-using PFN_rsvg_size    = int   (*)(void *, double *, double *);
-using PFN_rsvg_render  = int   (*)(void *, void *, const RsvgRect *, GErr **);
-using PFN_g_unref      = void  (*)(void *);
-using PFN_g_errfree    = void  (*)(GErr *);
+using PFN_rsvg_size    = int (*)(void *, double *, double *);
+using PFN_rsvg_render  = int (*)(void *, void *, const RsvgRect *, GErr **);
+using PFN_g_unref      = void (*)(void *);
+using PFN_g_errfree    = void (*)(GErr *);
 using PFN_surf_new     = void *(*)(int, int, int);
 using PFN_cr_new       = void *(*)(void *);
-using PFN_cr_destroy   = void  (*)(void *);
-using PFN_surf_flush   = void  (*)(void *);
-using PFN_surf_destroy = void  (*)(void *);
+using PFN_cr_destroy   = void (*)(void *);
+using PFN_surf_flush   = void (*)(void *);
+using PFN_surf_destroy = void (*)(void *);
 using PFN_surf_data    = unsigned char *(*)(void *);
-using PFN_surf_stride  = int   (*)(void *);
+using PFN_surf_stride  = int (*)(void *);
 
 struct RsvgLib
 {
-    PFN_rsvg_new     new_from_file = nullptr;
-    PFN_rsvg_size    get_size      = nullptr;
-    PFN_rsvg_render  render        = nullptr;
-    PFN_g_unref      g_unref       = nullptr;
-    PFN_g_errfree    g_errfree     = nullptr;
-    PFN_surf_new     surf_new      = nullptr;
-    PFN_cr_new       cr_new        = nullptr;
-    PFN_cr_destroy   cr_destroy    = nullptr;
-    PFN_surf_flush   surf_flush    = nullptr;
-    PFN_surf_destroy surf_destroy  = nullptr;
-    PFN_surf_data    surf_data     = nullptr;
-    PFN_surf_stride  surf_stride   = nullptr;
-    bool             ok            = false;
+    PFN_rsvg_new new_from_file    = nullptr;
+    PFN_rsvg_size get_size        = nullptr;
+    PFN_rsvg_render render        = nullptr;
+    PFN_g_unref g_unref           = nullptr;
+    PFN_g_errfree g_errfree       = nullptr;
+    PFN_surf_new surf_new         = nullptr;
+    PFN_cr_new cr_new             = nullptr;
+    PFN_cr_destroy cr_destroy     = nullptr;
+    PFN_surf_flush surf_flush     = nullptr;
+    PFN_surf_destroy surf_destroy = nullptr;
+    PFN_surf_data surf_data       = nullptr;
+    PFN_surf_stride surf_stride   = nullptr;
+    bool ok                       = false;
 
     static RsvgLib &get() noexcept
     {
@@ -72,37 +80,224 @@ private:
 #else
     // "rsvg-2", 2  →  librsvg-2.so.2  (Linux) / librsvg-2.2.dylib (macOS)
     // "cairo",  2  →  libcairo.so.2   (Linux) / libcairo.2.dylib   (macOS)
-    QLibrary rsvg_lib{"rsvg-2", 2};
-    QLibrary cairo_lib{"cairo", 2};
+    QLibrary rsvg_lib{"rsvg-2"};
+    QLibrary cairo_lib{"cairo"};
 #endif
 
     RsvgLib() noexcept
     {
         if (!rsvg_lib.load() || !cairo_lib.load())
+        {
+            qCritical() << "Unable to load librsvg or libcairo";
             return;
+        }
 
-#define LOADSYM(lib, field, sym)                                            \
-        field = reinterpret_cast<decltype(field)>(lib.resolve(sym));        \
-        if (!field) return;
+#define LOADSYM(lib, field, sym)                                               \
+    field = reinterpret_cast<decltype(field)>(lib.resolve(sym));               \
+    if (!field)                                                                \
+        return;
 
         // g_object_unref / g_error_free live in gobject/glib which are
         // transitive deps of librsvg, so rsvg_lib.resolve() finds them.
-        LOADSYM(rsvg_lib,  new_from_file, "rsvg_handle_new_from_file")
-        LOADSYM(rsvg_lib,  get_size,      "rsvg_handle_get_intrinsic_size_in_pixels")
-        LOADSYM(rsvg_lib,  render,        "rsvg_handle_render_document")
-        LOADSYM(rsvg_lib,  g_unref,       "g_object_unref")
-        LOADSYM(rsvg_lib,  g_errfree,     "g_error_free")
-        LOADSYM(cairo_lib, surf_new,      "cairo_image_surface_create")
-        LOADSYM(cairo_lib, cr_new,        "cairo_create")
-        LOADSYM(cairo_lib, cr_destroy,    "cairo_destroy")
-        LOADSYM(cairo_lib, surf_flush,    "cairo_surface_flush")
-        LOADSYM(cairo_lib, surf_destroy,  "cairo_surface_destroy")
-        LOADSYM(cairo_lib, surf_data,     "cairo_image_surface_get_data")
-        LOADSYM(cairo_lib, surf_stride,   "cairo_image_surface_get_stride")
+        LOADSYM(rsvg_lib, new_from_file, "rsvg_handle_new_from_file")
+        LOADSYM(rsvg_lib, get_size, "rsvg_handle_get_intrinsic_size_in_pixels")
+        LOADSYM(rsvg_lib, render, "rsvg_handle_render_document")
+        LOADSYM(rsvg_lib, g_unref, "g_object_unref")
+        LOADSYM(rsvg_lib, g_errfree, "g_error_free")
+        LOADSYM(cairo_lib, surf_new, "cairo_image_surface_create")
+        LOADSYM(cairo_lib, cr_new, "cairo_create")
+        LOADSYM(cairo_lib, cr_destroy, "cairo_destroy")
+        LOADSYM(cairo_lib, surf_flush, "cairo_surface_flush")
+        LOADSYM(cairo_lib, surf_destroy, "cairo_surface_destroy")
+        LOADSYM(cairo_lib, surf_data, "cairo_image_surface_get_data")
+        LOADSYM(cairo_lib, surf_stride, "cairo_image_surface_get_stride")
 #undef LOADSYM
         ok = true;
     }
 };
+
+// ---- DjVu dynamic-loader support ----------------------------------------
+// Minimal type definitions matching libdjvulibre ABI (stable since 3.5.x)
+
+// miniexp_t is struct miniexp_s* in libdjvulibre; use void* for opaque handle
+using djvu_miniexp_t = void *;
+
+// miniexp_nil and miniexp_dummy are macros in miniexp.h (not exported symbols):
+//   miniexp_nil   = (miniexp_t)(size_t)0
+//   miniexp_dummy = (miniexp_t)(size_t)2
+static const djvu_miniexp_t DJVU_MINIEXP_NIL = nullptr;
+static const djvu_miniexp_t DJVU_MINIEXP_DUMMY
+    = reinterpret_cast<void *>(static_cast<uintptr_t>(2));
+static constexpr int DJVU_MSG_ERROR     = 0; // DDJVU_ERROR
+static constexpr int DJVU_ROTATE_0      = 0;
+static constexpr int DJVU_ROTATE_90     = 1;
+static constexpr int DJVU_ROTATE_180    = 2;
+static constexpr int DJVU_ROTATE_270    = 3;
+static constexpr int DJVU_FMT_RGBMASK32 = 3; // DDJVU_FORMAT_RGBMASK32
+static constexpr int DJVU_RENDER_COLOR  = 0;
+
+struct DjVuPageInfo
+{
+    int width, height, dpi, rotation, version;
+};
+struct DjVuRect
+{
+    int x, y;
+    unsigned w, h;
+};
+
+// Memory layout matches libdjvulibre ddjvu_message_s union
+struct DjVuMsgAny
+{
+    int tag;
+    void *ctx, *doc, *page, *job;
+};
+struct DjVuMsgErr
+{
+    DjVuMsgAny any;
+    const char *message;
+    int lineno;
+    const char *file, *func;
+};
+union DjVuMsg
+{
+    DjVuMsgAny m_any;
+    DjVuMsgErr m_error;
+};
+
+using PFN_djvu_ctx_create   = void *(*)(const char *);
+using PFN_djvu_ctx_release  = void (*)(void *);
+using PFN_djvu_doc_create   = void *(*)(void *, const char *, int);
+using PFN_djvu_job_release  = void (*)(void *);
+using PFN_djvu_doc_job      = void *(*)(void *);
+using PFN_djvu_doc_pagenum  = int (*)(void *);
+using PFN_djvu_doc_pageinfo = int (*)(void *, int, DjVuPageInfo *);
+using PFN_djvu_doc_anno     = djvu_miniexp_t (*)(void *, int);
+using PFN_djvu_anno_keys    = djvu_miniexp_t *(*)(djvu_miniexp_t);
+using PFN_djvu_anno_meta    = const char *(*)(djvu_miniexp_t, djvu_miniexp_t);
+using PFN_djvu_anno_xmp     = const char *(*)(djvu_miniexp_t);
+using PFN_djvu_mexp_release = void (*)(void *, djvu_miniexp_t);
+using PFN_djvu_msg_wait     = DjVuMsg *(*)(void *);
+using PFN_djvu_msg_peek     = const DjVuMsg *(*)(void *);
+using PFN_djvu_msg_pop      = void (*)(void *);
+using PFN_djvu_page_create  = void *(*)(void *, int);
+using PFN_djvu_job_status   = int (*)(void *);
+using PFN_djvu_page_job     = void *(*)(void *);
+using PFN_djvu_page_setrot  = void (*)(void *, int);
+using PFN_djvu_page_dpi     = int (*)(void *);
+using PFN_djvu_page_width   = int (*)(void *);
+using PFN_djvu_page_height  = int (*)(void *);
+using PFN_djvu_page_render
+    = int (*)(void *, int, const DjVuRect *, const DjVuRect *, void *,
+              unsigned long, char *);
+using PFN_djvu_fmt_create   = void *(*)(int, int, unsigned int *);
+using PFN_djvu_fmt_roworder = void (*)(void *, int);
+using PFN_djvu_fmt_release  = void (*)(void *);
+using PFN_mexp_symbol       = djvu_miniexp_t (*)(const char *);
+using PFN_mexp_to_name      = const char *(*)(djvu_miniexp_t);
+using PFN_djvu_version      = const char *(*)();
+
+struct DjVuLib
+{
+    PFN_djvu_ctx_create ctx_create     = nullptr;
+    PFN_djvu_ctx_release ctx_release   = nullptr;
+    PFN_djvu_doc_create doc_create     = nullptr;
+    PFN_djvu_job_release job_release   = nullptr;
+    PFN_djvu_doc_job doc_job           = nullptr;
+    PFN_djvu_doc_pagenum doc_pagenum   = nullptr;
+    PFN_djvu_doc_pageinfo doc_pageinfo = nullptr;
+    PFN_djvu_doc_anno doc_anno         = nullptr;
+    PFN_djvu_anno_keys anno_keys       = nullptr;
+    PFN_djvu_anno_meta anno_meta       = nullptr;
+    PFN_djvu_anno_xmp anno_xmp         = nullptr;
+    PFN_djvu_mexp_release mexp_release = nullptr;
+    PFN_djvu_msg_wait msg_wait         = nullptr;
+    PFN_djvu_msg_peek msg_peek         = nullptr;
+    PFN_djvu_msg_pop msg_pop           = nullptr;
+    PFN_djvu_page_create page_create   = nullptr;
+    PFN_djvu_job_status job_status     = nullptr;
+    PFN_djvu_page_job page_job         = nullptr;
+    PFN_djvu_page_setrot page_setrot   = nullptr;
+    PFN_djvu_page_dpi page_dpi         = nullptr;
+    PFN_djvu_page_width page_width     = nullptr;
+    PFN_djvu_page_height page_height   = nullptr;
+    PFN_djvu_page_render page_render   = nullptr;
+    PFN_djvu_fmt_create fmt_create     = nullptr;
+    PFN_djvu_fmt_roworder fmt_roworder = nullptr;
+    PFN_djvu_fmt_release fmt_release   = nullptr;
+    PFN_mexp_symbol mexp_symbol        = nullptr;
+    PFN_mexp_to_name mexp_to_name      = nullptr;
+    PFN_djvu_version version_str       = nullptr;
+    bool ok                            = false;
+
+    // miniexp_dummy is a macro in miniexp.h, value = (miniexp_t)(size_t)2
+    static djvu_miniexp_t dummy() noexcept
+    {
+        return DJVU_MINIEXP_DUMMY;
+    }
+
+    static DjVuLib &get() noexcept
+    {
+        static DjVuLib s;
+        return s;
+    }
+
+private:
+    QLibrary lib{"djvulibre"};
+
+    DjVuLib() noexcept
+    {
+        if (!lib.load())
+        {
+            qCritical() << "Unable to load djvulibre";
+            return;
+        }
+
+#define DJLOADSYM(field, sym)                                                  \
+    field = reinterpret_cast<decltype(field)>(lib.resolve(sym));               \
+    if (!field)                                                                \
+    {                                                                          \
+        qWarning() << "Missing symbol" << sym;                                 \
+        return;                                                                \
+    }
+
+        DJLOADSYM(ctx_create, "ddjvu_context_create")
+        DJLOADSYM(ctx_release, "ddjvu_context_release")
+        DJLOADSYM(doc_create, "ddjvu_document_create_by_filename")
+        DJLOADSYM(job_release, "ddjvu_job_release")
+        DJLOADSYM(doc_job, "ddjvu_document_job")
+        DJLOADSYM(doc_pagenum, "ddjvu_document_get_pagenum")
+        DJLOADSYM(doc_pageinfo, "ddjvu_document_get_pageinfo")
+        DJLOADSYM(doc_anno, "ddjvu_document_get_anno")
+        DJLOADSYM(anno_keys, "ddjvu_anno_get_metadata_keys")
+        DJLOADSYM(anno_meta, "ddjvu_anno_get_metadata")
+        DJLOADSYM(anno_xmp, "ddjvu_anno_get_xmp")
+        DJLOADSYM(mexp_release, "ddjvu_miniexp_release")
+        DJLOADSYM(msg_wait, "ddjvu_message_wait")
+        DJLOADSYM(msg_peek, "ddjvu_message_peek")
+        DJLOADSYM(msg_pop, "ddjvu_message_pop")
+        DJLOADSYM(page_create, "ddjvu_page_create_by_pageno")
+        DJLOADSYM(job_status, "ddjvu_job_status")
+        DJLOADSYM(page_job, "ddjvu_page_job")
+        DJLOADSYM(page_setrot, "ddjvu_page_set_rotation")
+        DJLOADSYM(page_dpi, "ddjvu_page_get_resolution")
+        DJLOADSYM(page_width, "ddjvu_page_get_width")
+        DJLOADSYM(page_height, "ddjvu_page_get_height")
+        DJLOADSYM(page_render, "ddjvu_page_render")
+        DJLOADSYM(fmt_create, "ddjvu_format_create")
+        DJLOADSYM(fmt_roworder, "ddjvu_format_set_row_order")
+        DJLOADSYM(fmt_release, "ddjvu_format_release")
+        DJLOADSYM(mexp_symbol, "miniexp_symbol")
+        DJLOADSYM(mexp_to_name, "miniexp_to_name")
+#undef DJLOADSYM
+
+        // version_str is informational; failure doesn't disable DjVu support
+        version_str = reinterpret_cast<PFN_djvu_version>(
+            lib.resolve("ddjvu_get_version_string"));
+
+        ok = true;
+    }
+}; // namespace
 
 } // namespace
 
@@ -160,21 +355,20 @@ largest_size_in_line(fz_stext_line *line)
     return size;
 }
 
-#ifdef HAS_DJVU
 static void
-handle_messages(ddjvu_context_t *ctx, int wait)
+handle_djvu_messages(void *ctx, int wait)
 {
-    const ddjvu_message_t *msg;
+    auto &djvu = DjVuLib::get();
+    const DjVuMsg *msg;
     if (wait)
-        ddjvu_message_wait(ctx);
-    while ((msg = ddjvu_message_peek(ctx)))
+        djvu.msg_wait(ctx);
+    while ((msg = djvu.msg_peek(ctx)))
     {
-        if (msg->m_any.tag == DDJVU_ERROR)
+        if (msg->m_any.tag == DJVU_MSG_ERROR)
             fprintf(stderr, "ddjvu error: %s\n", msg->m_error.message);
-        ddjvu_message_pop(ctx);
+        djvu.msg_pop(ctx);
     }
 }
-#endif
 
 // Helper: find the closest character index within a line to point q
 static int
@@ -897,14 +1091,11 @@ Model::~Model() noexcept
     m_render_cancelled.store(true);
     waitForPendingRenders();
 
-#ifdef HAS_DJVU
     if (m_filetype == FileType::DJVU)
     {
         cleanup_djvu();
     }
-    else
-#endif
-        if (m_is_image)
+    else if (m_is_image)
     {
         cleanup_image();
     }
@@ -970,12 +1161,19 @@ Model::cleanup_image() noexcept
     m_default_page_dim = {};
 }
 
-#ifdef HAS_DJVU
 void
 Model::cleanup_djvu() noexcept
 {
-    ddjvu_document_release(m_ddjvu_doc);
-    ddjvu_context_release(m_ddjvu_ctx);
+    auto &djvu = DjVuLib::get();
+    if (djvu.ok)
+    {
+        if (m_ddjvu_doc)
+            djvu.job_release(m_ddjvu_doc);
+        if (m_ddjvu_ctx)
+            djvu.ctx_release(m_ddjvu_ctx);
+    }
+    m_ddjvu_doc = nullptr;
+    m_ddjvu_ctx = nullptr;
 
     {
         std::lock_guard<std::recursive_mutex> lock(m_page_cache_mutex);
@@ -989,7 +1187,6 @@ Model::cleanup_djvu() noexcept
         m_default_page_dim = {};
     }
 }
-#endif
 
 // Open file asynchronously to avoid blocking the UI, especially for large
 // documents or slow storage. The actual opening and page counting happens in a
@@ -1017,10 +1214,8 @@ Model::openAsync(const QString &filePath) noexcept
         return QtConcurrent::run([] {});
     }
 
-#ifdef HAS_DJVU
     if (m_filetype == FileType::DJVU)
         return openAsync_djvu(canonPath);
-#endif
 
     if (m_is_image)
         return openAsync_image(canonPath);
@@ -1038,15 +1233,16 @@ Model::openAsync_image(const QString &canonPath) noexcept
             QImage img;
             int iw = 0, ih = 0;
             bool svg_rendered = false;
-            auto &rsvg = RsvgLib::get();
+            auto &rsvg        = RsvgLib::get();
             if (rsvg.ok)
             {
-                GErr *gerr   = nullptr;
-                void *handle = rsvg.new_from_file(
-                    canonPath.toUtf8().constData(), &gerr);
+                GErr *gerr = nullptr;
+                void *handle
+                    = rsvg.new_from_file(canonPath.toUtf8().constData(), &gerr);
                 if (!handle)
                 {
-                    if (gerr) rsvg.g_errfree(gerr);
+                    if (gerr)
+                        rsvg.g_errfree(gerr);
                     QMetaObject::invokeMethod(this, &Model::openFileFailed,
                                               Qt::QueuedConnection);
                     return;
@@ -1054,12 +1250,12 @@ Model::openAsync_image(const QString &canonPath) noexcept
                 double w_d = 0, h_d = 0;
                 if (!rsvg.get_size(handle, &w_d, &h_d) || w_d <= 0 || h_d <= 0)
                     w_d = 800, h_d = 600;
-                iw = static_cast<int>(w_d);
-                ih = static_cast<int>(h_d);
-                void *surf = rsvg.surf_new(0 /*CAIRO_FORMAT_ARGB32*/, iw, ih);
-                void *cr   = rsvg.cr_new(surf);
+                iw          = static_cast<int>(w_d);
+                ih          = static_cast<int>(h_d);
+                void *surf  = rsvg.surf_new(0 /*CAIRO_FORMAT_ARGB32*/, iw, ih);
+                void *cr    = rsvg.cr_new(surf);
                 RsvgRect vp = {0.0, 0.0, w_d, h_d};
-                gerr = nullptr;
+                gerr        = nullptr;
                 rsvg.render(handle, cr, &vp, &gerr);
                 rsvg.cr_destroy(cr);
                 rsvg.g_unref(handle);
@@ -1074,7 +1270,8 @@ Model::openAsync_image(const QString &canonPath) noexcept
                 rsvg.surf_flush(surf);
                 img = QImage(rsvg.surf_data(surf), iw, ih,
                              rsvg.surf_stride(surf),
-                             QImage::Format_ARGB32_Premultiplied).copy();
+                             QImage::Format_ARGB32_Premultiplied)
+                          .copy();
                 rsvg.surf_destroy(surf);
                 svg_rendered = true;
             }
@@ -1088,8 +1285,10 @@ Model::openAsync_image(const QString &canonPath) noexcept
                     return;
                 }
                 QSize sz = renderer.defaultSize();
-                if (sz.isEmpty()) sz = QSize(800, 600);
-                iw = sz.width(); ih = sz.height();
+                if (sz.isEmpty())
+                    sz = QSize(800, 600);
+                iw  = sz.width();
+                ih  = sz.height();
                 img = QImage(sz, QImage::Format_ARGB32);
                 img.fill(Qt::transparent);
                 QPainter p(&img);
@@ -1176,44 +1375,51 @@ Model::openAsync_image(const QString &canonPath) noexcept
     });
 }
 
-#ifdef HAS_DJVU
 QFuture<void>
 Model::openAsync_djvu(const QString &canonPath) noexcept
 {
+    auto &djvu = DjVuLib::get();
+    if (!djvu.ok)
+    {
+        QMetaObject::invokeMethod(this, &Model::openFileFailed,
+                                  Qt::QueuedConnection);
+        return QtConcurrent::run([] {});
+    }
+
     return QtConcurrent::run([this, canonPath]
     {
-        ddjvu_context_t *ctx       = ddjvu_context_create("LEKTRA");
+        auto &djvu                 = DjVuLib::get();
+        void *ctx                  = djvu.ctx_create("LEKTRA");
         const QByteArray pathBytes = canonPath.toUtf8();
         const std::string pathStr(pathBytes.constData(), pathBytes.size());
-        ddjvu_document_t *doc
-            = ddjvu_document_create_by_filename(ctx, pathStr.c_str(), true);
+        void *doc = djvu.doc_create(ctx, pathStr.c_str(), true);
         if (!doc)
         {
-            ddjvu_context_release(ctx);
+            djvu.ctx_release(ctx);
             QMetaObject::invokeMethod(this, &Model::openFileFailed,
                                       Qt::QueuedConnection);
             return;
         }
 
-        // Pump until decoded
-        while (!ddjvu_document_decoding_done(doc))
+        // Pump until decoded (DDJVU_JOB_OK = 2)
+        while (djvu.job_status(djvu.doc_job(doc)) < 2)
         {
-            ddjvu_message_t *msg = ddjvu_message_wait(ctx);
-            if (msg->m_any.tag == DDJVU_ERROR)
+            DjVuMsg *msg = djvu.msg_wait(ctx);
+            if (msg->m_any.tag == DJVU_MSG_ERROR)
             {
-                ddjvu_document_release(doc);
-                ddjvu_context_release(ctx);
+                djvu.job_release(doc);
+                djvu.ctx_release(ctx);
                 QMetaObject::invokeMethod(this, &Model::openFileFailed,
                                           Qt::QueuedConnection);
                 return;
             }
-            ddjvu_message_pop(ctx);
+            djvu.msg_pop(ctx);
         }
 
-        const int page_count = ddjvu_document_get_pagenum(doc);
+        const int page_count = djvu.doc_pagenum(doc);
 
-        ddjvu_pageinfo_t info{};
-        ddjvu_document_get_pageinfo(doc, 0, &info);
+        DjVuPageInfo info{};
+        djvu.doc_pageinfo(doc, 0, &info);
         const float w = static_cast<float>(info.width) / info.dpi * 72.0f;
         const float h = static_cast<float>(info.height) / info.dpi * 72.0f;
 
@@ -1246,7 +1452,6 @@ Model::openAsync_djvu(const QString &canonPath) noexcept
         }, Qt::QueuedConnection);
     });
 }
-#endif
 
 QFuture<void>
 Model::openAsync_mupdf(const QString &canonPath) noexcept
@@ -1277,9 +1482,7 @@ Model::openAsync_mupdf(const QString &canonPath) noexcept
             }
         } g{bg_ctx};
 
-#ifdef HAS_DJVU
         cleanup_djvu();
-#endif
         cleanup_mupdf();
 
         fz_document *doc           = nullptr;
@@ -1398,9 +1601,7 @@ Model::_continueOpen(fz_context *ctx, fz_document *doc) noexcept
         waitForPendingRenders();
         m_render_cancelled.store(false, std::memory_order_release);
         cleanup_mupdf();
-#ifdef HAS_DJVU
         cleanup_djvu();
-#endif
         cleanup_image();
         fz_drop_context(m_ctx);
 
@@ -1428,13 +1629,11 @@ void
 Model::close() noexcept
 {
     m_filepath.clear();
-#ifdef HAS_DJVU
     if (m_filetype == FileType::DJVU)
     {
         cleanup_djvu();
         return;
     }
-#endif
     if (m_is_image)
     {
         cleanup_image();
@@ -1471,53 +1670,53 @@ Model::ensurePageCached(int pageno) noexcept
     buildPageCache(pageno);
 }
 
-#ifdef HAS_DJVU
 void
 Model::buildPageCache_djvu(int pageno) noexcept
 {
-    if (!m_ddjvu_doc || m_ddjvu_ctx == nullptr)
+    auto &djvu = DjVuLib::get();
+    if (!djvu.ok || !m_ddjvu_doc || m_ddjvu_ctx == nullptr)
         return;
 
     // DjVuLibre is NOT thread-safe for the same context — serialize
     std::lock_guard<std::mutex> lock(m_doc_mutex);
 
-    ddjvu_page_t *page = ddjvu_page_create_by_pageno(m_ddjvu_doc, pageno);
+    void *page = djvu.page_create(m_ddjvu_doc, pageno);
     if (!page)
         return;
 
-    // Pump until page is ready
-    ddjvu_message_t *msg;
-    while (!ddjvu_page_decoding_done(page))
+    // Pump until page is ready (DDJVU_JOB_OK = 2)
+    DjVuMsg *msg;
+    while (djvu.job_status(djvu.page_job(page)) < 2)
     {
-        msg = ddjvu_message_wait(m_ddjvu_ctx);
-        if (msg->m_any.tag == DDJVU_ERROR)
+        msg = djvu.msg_wait(m_ddjvu_ctx);
+        if (msg->m_any.tag == DJVU_MSG_ERROR)
         {
-            ddjvu_page_release(page);
+            djvu.job_release(page);
             return;
         }
-        ddjvu_message_pop(m_ddjvu_ctx);
+        djvu.msg_pop(m_ddjvu_ctx);
     }
 
-    const ddjvu_page_rotation_t djvu_rot = [&]() -> ddjvu_page_rotation_t
+    const int djvu_rot = [&]() -> int
     {
         switch (((static_cast<int>(m_rotation) % 360) + 360) % 360)
         {
             case 90:
-                return DDJVU_ROTATE_90;
+                return DJVU_ROTATE_90;
             case 180:
-                return DDJVU_ROTATE_180;
+                return DJVU_ROTATE_180;
             case 270:
-                return DDJVU_ROTATE_270;
+                return DJVU_ROTATE_270;
             default:
-                return DDJVU_ROTATE_0;
+                return DJVU_ROTATE_0;
         }
     }();
-    ddjvu_page_set_rotation(page, djvu_rot);
+    djvu.page_setrot(page, djvu_rot);
 
     // DjVu page native DPI and dimensions
-    const int native_dpi = ddjvu_page_get_resolution(page);
-    const int pw_px      = ddjvu_page_get_width(page); // at native DPI
-    const int ph_px      = ddjvu_page_get_height(page);
+    const int native_dpi = djvu.page_dpi(page);
+    const int pw_px      = djvu.page_width(page); // at native DPI
+    const int ph_px      = djvu.page_height(page);
 
     // Store dimensions in pts (1/72 inch) for the rest of the pipeline
     const float w_pts = static_cast<float>(pw_px) / native_dpi * 72.0f;
@@ -1534,28 +1733,27 @@ Model::buildPageCache_djvu(int pageno) noexcept
     const int rw           = static_cast<int>(pw_px * scale);
     const int rh           = static_cast<int>(ph_px * scale);
 
-    ddjvu_rect_t prect{0, 0, static_cast<unsigned>(rw),
-                       static_cast<unsigned>(rh)};
-    ddjvu_rect_t rrect = prect;
+    DjVuRect prect{0, 0, static_cast<unsigned>(rw), static_cast<unsigned>(rh)};
+    DjVuRect rrect = prect;
 
     // BGRA format maps cleanly to QImage::Format_RGB32
     const int stride = rw * 4;
     QByteArray buf(stride * rh, 0);
 
-    ddjvu_format_t *fmt         = nullptr;
+    void *fmt                   = nullptr;
     // DjVuLibre RGBMASK32: specify R/G/B masks and white background
     const unsigned int masks[3] = {0x00FF0000, 0x0000FF00, 0x000000FF};
-    fmt = ddjvu_format_create(DDJVU_FORMAT_RGBMASK32, 3,
-                              const_cast<unsigned int *>(masks));
-    ddjvu_format_set_row_order(fmt, 1); // top-to-bottom
+    fmt = djvu.fmt_create(DJVU_FMT_RGBMASK32, 3,
+                          const_cast<unsigned int *>(masks));
+    djvu.fmt_roworder(fmt, 1); // top-to-bottom
 
-    const int ok = ddjvu_page_render(page, DDJVU_RENDER_COLOR, &prect, &rrect,
-                                     fmt, stride, buf.data());
+    const int render_ok = djvu.page_render(page, DJVU_RENDER_COLOR, &prect,
+                                           &rrect, fmt, stride, buf.data());
 
-    ddjvu_format_release(fmt);
-    ddjvu_page_release(page);
+    djvu.fmt_release(fmt);
+    djvu.job_release(page);
 
-    if (!ok)
+    if (!render_ok)
         return;
 
     QImage image(reinterpret_cast<const uchar *>(buf.constData()), rw, rh,
@@ -1581,7 +1779,6 @@ Model::buildPageCache_djvu(int pageno) noexcept
             m_page_lru_cache.put(pageno, std::move(entry));
     }
 }
-#endif
 
 void
 Model::buildPageCache(int pageno) noexcept
@@ -1589,13 +1786,11 @@ Model::buildPageCache(int pageno) noexcept
     if (m_page_lru_cache.has(pageno))
         return;
 
-#ifdef HAS_DJVU
     if (m_filetype == FileType::DJVU)
     {
         buildPageCache_djvu(pageno);
         return;
     }
-#endif
 
     PageCacheEntry entry;
 
@@ -1953,10 +2148,8 @@ Model::reloadDocument() noexcept
 bool
 Model::SaveChanges() noexcept
 {
-#ifdef HAS_DJVU
     if (m_filetype == FileType::DJVU)
         return false;
-#endif
 
     fz_try(m_ctx)
     {
@@ -2021,10 +2214,8 @@ std::vector<QPolygonF>
 Model::computeTextSelectionQuad(int pageno, QPointF devStart,
                                 QPointF devEnd) noexcept
 {
-#ifdef HAS_DJVU
     if (m_filetype == FileType::DJVU)
         return {};
-#endif
 
     std::vector<QPolygonF> out;
     constexpr int MAX_HITS = 1024;
@@ -2172,10 +2363,10 @@ Model::get_selected_text(int pageno, QPointF start, QPointF end,
 Model::Properties
 Model::properties() noexcept
 {
-#ifdef HAS_DJVU
     if (m_filetype == FileType::DJVU)
     {
-        if (!m_ddjvu_ctx || !m_ddjvu_doc)
+        auto &djvu = DjVuLib::get();
+        if (!djvu.ok || !m_ddjvu_ctx || !m_ddjvu_doc)
             return {};
 
         Properties djvu_props;
@@ -2184,25 +2375,24 @@ Model::properties() noexcept
         /* Fetch document-wide annotations.
            compat=1 also searches the shared annotation chunk
            so metadata is found in older files too. */
-        miniexp_t anno;
-        while ((anno = ddjvu_document_get_anno(m_ddjvu_doc, 1))
-               == miniexp_dummy)
-            handle_messages(m_ddjvu_ctx, 1);
+        djvu_miniexp_t anno;
+        while ((anno = djvu.doc_anno(m_ddjvu_doc, 1)) == djvu.dummy())
+            handle_djvu_messages(m_ddjvu_ctx, 1);
 
-        if (anno == miniexp_nil || anno == miniexp_symbol("failed")
-            || anno == miniexp_symbol("stopped"))
+        if (anno == DJVU_MINIEXP_NIL || anno == djvu.mexp_symbol("failed")
+            || anno == djvu.mexp_symbol("stopped"))
         {
             return djvu_props;
         }
 
         /* Key/value metadata pairs */
-        miniexp_t *keys = ddjvu_anno_get_metadata_keys(anno);
+        djvu_miniexp_t *keys = djvu.anno_keys(anno);
         if (keys)
         {
             for (int i = 0; keys[i]; i++)
             {
-                const char *key = miniexp_to_name(keys[i]);
-                const char *val = ddjvu_anno_get_metadata(anno, keys[i]);
+                const char *key = djvu.mexp_to_name(keys[i]);
+                const char *val = djvu.anno_meta(anno, keys[i]);
                 if (key && val)
                     djvu_props.emplace_back(key, val);
             }
@@ -2210,14 +2400,13 @@ Model::properties() noexcept
         }
 
         /* XMP metadata blob (if present) */
-        const char *xmp = ddjvu_anno_get_xmp(anno);
+        const char *xmp = djvu.anno_xmp(anno);
         if (xmp)
             djvu_props.emplace_back("XMP", xmp);
 
-        ddjvu_miniexp_release(m_ddjvu_doc, anno);
+        djvu.mexp_release(m_ddjvu_doc, anno);
         return djvu_props;
     }
-#endif
 
     if (!m_ctx || !m_doc)
         return {};
@@ -2551,7 +2740,6 @@ Model::renderPageWithExtrasAsync(const RenderJob &job) noexcept
 {
     PageRenderResult result;
 
-#ifdef HAS_DJVU
     if (m_filetype == FileType::DJVU)
     {
         std::lock_guard<std::recursive_mutex> cache_lock(m_page_cache_mutex);
@@ -2576,7 +2764,6 @@ Model::renderPageWithExtrasAsync(const RenderJob &job) noexcept
         // empty
         return result;
     }
-#endif
 
     fz_context *ctx = cloneContext();
     if (!ctx)
@@ -4705,11 +4892,10 @@ Model::getFileType(const QString &path) noexcept
     if (name == "application/x-fictionbook+xml"
         || name == "application/x-fictionbook")
         return FileType::FB2;
-#ifdef HAS_DJVU
-    if (name == "image/vnd.djvu" || name == "image/vnd.djvu+multipage"
-        || name == "image/x-djvu")
+    if (DjVuLib::get().ok
+        && (name == "image/vnd.djvu" || name == "image/vnd.djvu+multipage"
+            || name == "image/x-djvu"))
         return FileType::DJVU;
-#endif
 
     // Images
     if (name == "image/jpeg")
@@ -4746,13 +4932,11 @@ Model::setZoom(float zoom) noexcept
 {
     m_zoom = zoom;
 
-#ifdef HAS_DJVU
     if (m_filetype == FileType::DJVU)
     {
         invalidatePageCaches();
         return;
     }
-#endif
 
     if (m_is_image)
         invalidatePageCaches();
@@ -4765,13 +4949,11 @@ Model::rotateClock() noexcept
     if (m_rotation >= 360)
         m_rotation = 0;
 
-#ifdef HAS_DJVU
     if (m_filetype == FileType::DJVU)
     {
         invalidatePageCaches();
         return;
     }
-#endif
 
     if (m_is_image)
         invalidatePageCaches();
@@ -4784,13 +4966,11 @@ Model::rotateAnticlock() noexcept
     if (m_rotation < 0)
         m_rotation = 270;
 
-#ifdef HAS_DJVU
     if (m_filetype == FileType::DJVU)
     {
         invalidatePageCaches();
         return;
     }
-#endif
 
     if (m_is_image)
         invalidatePageCaches();
@@ -4846,10 +5026,8 @@ Model::fileTypeToString() const noexcept
             return "CBZ/CBT";
         case FileType::FB2:
             return "FB2";
-#ifdef HAS_DJVU
         case FileType::DJVU:
             return "DJVU";
-#endif
         case FileType::JPG:
             return "JPEG";
         case FileType::PNG:

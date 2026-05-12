@@ -15,9 +15,6 @@ extern "C"
 #ifdef WITH_SYNCTEX
     #include <synctex/synctex_version.h>
 #endif
-#ifdef HAS_DJVU
-    #include <libdjvu/ddjvuapi.h>
-#endif
 }
 
 class AboutDialog : public QDialog

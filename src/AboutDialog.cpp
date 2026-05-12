@@ -1,6 +1,7 @@
 #include "AboutDialog.hpp"
 
 #include <QFormLayout>
+#include <QLibrary>
 #include <QPainter>
 #include <QTextEdit>
 #include <qboxlayout.h>
@@ -98,11 +99,19 @@ AboutDialog::softwaresUsedSection() noexcept
     layout->addRow("SyncTeX", new QLabel(QString(SYNCTEX_VERSION_STRING)));
 #endif
 
-#ifdef HAS_DJVU
-    layout->addRow(
-        "DjVuLibre",
-        new QLabel(QString(ddjvu_get_version_string()).split("-").last()));
+    {
+        using PFN_ver = const char *(*)();
+#if defined(Q_OS_WIN)
+        QLibrary djvuLib("djvulibre");
+#else
+        QLibrary djvuLib("djvulibre", 21);
 #endif
+        if (djvuLib.load()) {
+            auto fn = reinterpret_cast<PFN_ver>(djvuLib.resolve("ddjvu_get_version_string"));
+            if (fn)
+                layout->addRow("DjVuLibre", new QLabel(QString(fn()).split("-").last()));
+        }
+    }
 
 #ifdef WITH_LUA
     #define STRINGIFY(x) #x

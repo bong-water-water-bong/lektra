@@ -77,11 +77,12 @@ https://github.com/user-attachments/assets/c3b80351-3af3-4488-87a6-8b52c27f875c
 # Supported file types
 
 ### Documents
-- PDF, XPS, OXPS, CBZ, FB2, EPUB, Mobi, DjVu (if compiled)
+- PDF, XPS, OXPS, CBZ, FB2, EPUB, Mobi, DjVu (if `djvulibre` is installed on the system)
 
 ### Images
 - JPG, PNG, APNG, BMP, WEBP, GIF, TIFF, ICO, SVG, PPM, PGM, PBM
 - multi-frame animated images (e.g. animated GIFs, animated WebPs etc.) and multi-page TIFFs.
+- Edge cases of SVGs can be handled through `librsvg` if it's found on the system
 
 # AI Usage
 
