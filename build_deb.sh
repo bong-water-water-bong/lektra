@@ -16,7 +16,6 @@ fi
 ARCH=${ARCH:-$(command -v dpkg >/dev/null 2>&1 && dpkg --print-architecture || uname -m)}
 JOBS=${JOBS:-$(getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1)}
 BUILD_TYPE=${BUILD_TYPE:-Release}
-WITH_DJVU=${WITH_DJVU:-OFF}
 WITH_SYNCTEX=${WITH_SYNCTEX:-ON}
 WITH_LUA=${WITH_LUA:-ON}
 
@@ -40,7 +39,6 @@ fi
 cmake -S "$ROOT_DIR" -B "$BUILD_DIR" \
     -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
     -DCMAKE_INSTALL_PREFIX=/usr \
-    -DWITH_DJVU="$WITH_DJVU" \
     -DWITH_SYNCTEX="$WITH_SYNCTEX" \
     -DWITH_LUA="$WITH_LUA"
 cmake --build "$BUILD_DIR" -j"$JOBS"
@@ -54,7 +52,6 @@ cp -a "$STAGE_DIR"/. "$PKG_DIR"/
 INSTALLED_SIZE=$(du -ks "$PKG_DIR/usr" 2>/dev/null | awk '{print $1}')
 
 _lower() { echo "$1" | tr '[:upper:]' '[:lower:]'; }
-DJVU_DEP=$([ "$(_lower "$WITH_DJVU")"       = "on" ] && echo ", libdjvulibre-dev"  || true)
 LUA_DEP=$([ "$(_lower "$WITH_LUA")"        = "on" ] && echo ", liblua5.4-dev"     || true)
 
 
@@ -68,8 +65,8 @@ Maintainer: Dheeraj Vittal Shenoy <dheerajshenoy22@gmail.com>
 Homepage: https://codeberg.org/lektra/lektra
 Installed-Size: ${INSTALLED_SIZE:-0}
 Build-Depends: build-essential pkgconf cmake ninja-build g++
-Depends: qt6-base-dev, qt6-tools-dev, qt6-l10n-tools, unzip, zlib1g-dev, libgl1-mesa-dri, mesa-common-dev, qt6-imageformats-plugins, libqt6svg6${DJVU_DEP}${LUA_DEP}
-Suggests: qt6-style-kvantum
+Depends: qt6-base-dev, qt6-tools-dev, qt6-l10n-tools, unzip, zlib1g-dev, libgl1-mesa-dri, mesa-common-dev, qt6-imageformats-plugins, libqt6svg6${LUA_DEP}
+Suggests: qt6-style-kvantum, libdjvulibre-dev
 Description: High performance Document and Image viewer
 EOF
 

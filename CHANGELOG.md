@@ -4,7 +4,6 @@
 
 ### Features
 
-- **Remove `ImageMagick` dependency as it's a headache to maintain and to link against for cross-platform compatibility.**
 - Add Lua API `view:export_highlights(path)` that serialises all highlight annotations to
   a JSON file. Each entry contains `page` (1-based), `text`, and optionally `comment`.
   Returns `true` on success or `nil, error` on failure.
@@ -62,6 +61,9 @@
   `HAS_DJVU` preprocessor define have been removed.
 
 ### Breaking Changes
+
+- **Remove `ImageMagick` dependency as it's a headache to maintain and to link against for cross-platform compatibility.**
+- Removed `lektra.capabilities` table as it's not useful
 
 ## 0.7.1
 

@@ -1,7 +1,6 @@
 #!/bin/sh
 set -eu
 
-WITH_DJVU=${WITH_DJVU:-off}
 WITH_SYNCTEX=${WITH_SYNCTEX:-on}
 WITH_LUA=${WITH_LUA:-on}
 
@@ -39,8 +38,7 @@ cmake -S "$ROOT_DIR" -B "$BUILD_DIR" \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX=/usr \
     -DWITH_LUA="$WITH_LUA" \
-    -DWITH_SYNCTEX="$WITH_SYNCTEX" \
-    -DWITH_DJVU="$WITH_DJVU"
+    -DWITH_SYNCTEX="$WITH_SYNCTEX"
 
 cmake --build "$BUILD_DIR" -j"$JOBS"
 DESTDIR="$APPDIR" cmake --install "$BUILD_DIR"
