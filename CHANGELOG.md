@@ -5,9 +5,6 @@
 ### Features
 
 - **Remove `ImageMagick` dependency as it's a headache to maintain and to link against for cross-platform compatibility.**
-- Add `collectHighlightTexts()` on `Model` returning a `std::vector<HighlightText>` with
-  `page`, `text`, `comment`, and `quad` fields. Multi-line highlights are grouped into a
-  single entry (lines joined with a space) rather than one entry per line.
 - Add Lua API `view:export_highlights(path)` that serialises all highlight annotations to
   a JSON file. Each entry contains `page` (1-based), `text`, and optionally `comment`.
   Returns `true` on success or `nil, error` on failure.
@@ -35,6 +32,9 @@
   Qt scene-transform scale and never triggered a pixel-level re-render. The HQ render
   timer is now started after each anchor zoom so that, once zoom settles, `renderImage`
   re-renders at the exact target dimensions using `Qt::SmoothTransformation`.
+- Add `collectHighlightTexts()` on `Model` returning a `std::vector<HighlightText>` with
+  `page`, `text`, `comment`, and `quad` fields. Multi-line highlights are grouped into a
+  single entry (lines joined with a space) rather than one entry per line.
 
 ### Performance
 
