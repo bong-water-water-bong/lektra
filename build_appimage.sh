@@ -1,10 +1,10 @@
 #!/bin/sh
 set -eu
 
-WITH_DJVU="off"
-WITH_IMAGE="on"
-WITH_SYNCTEX="on"
-WITH_LUA="on"
+WITH_DJVU=${WITH_DJVU:-off}
+WITH_IMAGE=${WITH_IMAGE:-on}
+WITH_SYNCTEX=${WITH_SYNCTEX:-on}
+WITH_LUA=${WITH_LUA:-on}
 
 ROOT_DIR=$(cd "$(dirname "$0")" && pwd)
 BUILD_DIR="$ROOT_DIR/build-appimage"
