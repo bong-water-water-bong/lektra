@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.10)
+cmake_minimum_required(VERSION 3.22)
 project(lektra VERSION 0.7.1 LANGUAGES C CXX)
 
 include(GNUInstallDirs)
@@ -141,7 +141,7 @@ find_package(Qt6 REQUIRED COMPONENTS
 find_package(djvulibre CONFIG QUIET)
 
 if (WITH_LUA)
-    find_package(Lua)
+    find_package(Lua QUIET)
     if (Lua_FOUND)
         message(STATUS "Lua support: enabled (Lua version: ${Lua_VERSION})")
     else()
