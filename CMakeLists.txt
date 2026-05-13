@@ -484,6 +484,12 @@ endif()
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/tutorial.pdf
     DESTINATION share/doc/${PROJECT_NAME})
 
+# Lua stubs (Linux and macOS only)
+if(NOT WIN32)
+    install(DIRECTORY stubs/lua/
+        DESTINATION share/lektra/lua)
+endif()
+
 # Man pages (Unix only — not applicable on Windows)
 if(NOT WIN32)
     install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/docs/man/lektra.1
