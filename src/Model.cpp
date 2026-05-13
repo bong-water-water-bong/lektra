@@ -1761,21 +1761,26 @@ Model::buildPageCache_djvu(int pageno) noexcept
                 return DJVU_ROTATE_0;
         }
     }();
-    djvu.page_setrot(page, djvu_rot);
+    // Read pre-rotation dimensions first so the cache stores them consistently
+    // with the MuPDF path (pre-rotation). Post-rotation values are used only
+    // for the render buffer below.
+    const int native_dpi  = djvu.page_dpi(page);
+    const int orig_pw_px  = djvu.page_width(page);
+    const int orig_ph_px  = djvu.page_height(page);
 
-    // DjVu page native DPI and dimensions
-    const int native_dpi = djvu.page_dpi(page);
-    const int pw_px      = djvu.page_width(page); // at native DPI
-    const int ph_px      = djvu.page_height(page);
-
-    // Store dimensions in pts (1/72 inch) for the rest of the pipeline
-    const float w_pts = static_cast<float>(pw_px) / native_dpi * 72.0f;
-    const float h_pts = static_cast<float>(ph_px) / native_dpi * 72.0f;
+    const float w_pts = static_cast<float>(orig_pw_px) / native_dpi * 72.0f;
+    const float h_pts = static_cast<float>(orig_ph_px) / native_dpi * 72.0f;
 
     {
         std::lock_guard<std::mutex> dimlock(m_page_dim_mutex);
         m_page_dim_cache.set(pageno, w_pts, h_pts);
     }
+
+    djvu.page_setrot(page, djvu_rot);
+
+    // Post-rotation pixel dimensions drive the render buffer size.
+    const int pw_px = djvu.page_width(page);
+    const int ph_px = djvu.page_height(page);
 
     // Render at m_zoom * m_dpi — same scale logic as the MuPDF path
     const float render_dpi = m_zoom * m_dpi * m_dpr;

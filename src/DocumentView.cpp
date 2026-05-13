@@ -1186,6 +1186,7 @@ DocumentView::rotateHelper() noexcept
     }
 
     renderPages();
+    GotoPage(m_pageno);
 }
 
 // Cycle to the next fit mode
@@ -1291,15 +1292,27 @@ DocumentView::setFitMode(FitMode mode) noexcept
     {
         case FitMode::Width:
         {
-            const int viewWidth = m_gview->viewport()->width();
-            newZoom             = static_cast<double>(viewWidth) / bboxW;
+            const int viewWidth  = m_gview->viewport()->width();
+            const int viewHeight = m_gview->viewport()->height();
+            double z             = static_cast<double>(viewWidth) / bboxW;
+            // If this zoom would force a vertical scrollbar, account for its
+            // width so the calculation is stable across repeated presses.
+            if (bboxH * z > viewHeight)
+                z = static_cast<double>(viewWidth - m_config.scrollbars.size)
+                    / bboxW;
+            newZoom = z;
         }
         break;
 
         case FitMode::Height:
         {
+            const int viewWidth  = m_gview->viewport()->width();
             const int viewHeight = m_gview->viewport()->height();
-            newZoom              = static_cast<double>(viewHeight) / bboxH;
+            double z             = static_cast<double>(viewHeight) / bboxH;
+            if (bboxW * z > viewWidth)
+                z = static_cast<double>(viewHeight - m_config.scrollbars.size)
+                    / bboxH;
+            newZoom = z;
         }
         break;
 
@@ -5090,10 +5103,19 @@ DocumentView::repositionPages()
         {
             // Scale the existing image so its height matches the target
             // physical pixel height for *this* page at the new zoom level.
-
+            // For images rotated 90°/270° the rendered height corresponds to
+            // the original page width, so swap the dimension used.
+            const auto &pageDimR = m_model->page_dimension_pts(i);
+            const double rot90   = std::fmod(std::abs(m_model->rotation()), 360.0);
+            const bool swapped   = (rot90 == 90.0 || rot90 == 270.0)
+                                   && (m_model->isImage()
+                                       || m_model->fileType()
+                                              == Model::FileType::DJVU);
+            const double heightPts
+                = swapped ? pageDimR.width_pts : pageDimR.height_pts;
             const double targetPixelHeight
-                = m_model->page_dimension_pts(i).height_pts * m_model->DPR()
-                  * m_current_zoom * m_model->DPI() / 72.0;
+                = heightPts * m_model->DPR() * m_current_zoom * m_model->DPI()
+                  / 72.0;
 
             const QImage &img = item->image();
             if (img.isNull() || img.height() == 0 || img.width() == 0)

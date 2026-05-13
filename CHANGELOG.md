@@ -11,6 +11,7 @@
 
 ### Bug Fixes
 
+- Fix fit mode not working properly for images/djvu files after rotating
 - Fix pickers (command palette, outline, bookmarks, etc.) leaking key events and shortcuts
   to the focused `DocumentView` while open. Pickers now grab the keyboard on launch and
   install an application-level event filter to swallow `QShortcutEvent`s, both of which
