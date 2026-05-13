@@ -182,17 +182,17 @@ Lektra::initMenubar() noexcept
 
     fileMenu->addAction(
         tr("Open File\t%1").arg(m_config.keybinds["file_open_tab"].join(", ")),
-        this, [&]() { OpenFileInNewTab(); });
+        this, [&]() { OpenFilesInNewTab(); });
 
     fileMenu->addAction(
         tr("Open File In VSplit\t%1")
             .arg(m_config.keybinds["file_open_vsplit"].join(", ")),
-        this, [&]() { OpenFileVSplit(); });
+        this, [&]() { OpenFilesInVSplit(); });
 
     fileMenu->addAction(
         tr("Open File In HSplit\t%1")
             .arg(m_config.keybinds["file_open_hsplit"].join(", ")),
-        this, [&]() { OpenFileHSplit(); });
+        this, [&]() { OpenFilesInHSplit(); });
 
     m_recentFilesMenu = fileMenu->addMenu(tr("Recent Files"));
 
@@ -1463,7 +1463,7 @@ Lektra::updateUiEnabledState() noexcept
         auto *model = m_doc->model();
         filetype    = model->fileType();
         isPDF       = (filetype == Model::FileType::PDF);
-        isImageDoc = model->isImage();
+        isImageDoc  = model->isImage();
 
         hasTextLayer = (filetype == Model::FileType::PDF
                         || filetype == Model::FileType::EPUB
@@ -2612,15 +2612,24 @@ Lektra::OpenFilesInVSplit(const QStringList &files) noexcept
     qDebug() << "Lektra::OpenFilesInVSplit(): Opening files in vertical split:"
              << files.size();
 #endif
+    QStringList qfiles;
+
     if (files.isEmpty())
-        return;
+    {
+        qfiles = QFileDialog::getOpenFileNames(this, tr("Open Files"),
+                                               QString(), supportedFormats());
+    }
+    else
+    {
+        qfiles = std::move(files);
+    }
 
     // First file always opens in a new tab
-    OpenFileInNewTab(files[0], [this, files](Lektra *)
+    OpenFileInNewTab(qfiles[0], [this, qfiles](Lektra *)
     {
         // Subsequent files split into that tab
-        for (int i = 1; i < files.size(); ++i)
-            OpenFileVSplit(files[i]);
+        for (int i = 1; i < qfiles.size(); ++i)
+            OpenFileVSplit(qfiles[i]);
     });
 }
 
@@ -2632,15 +2641,24 @@ Lektra::OpenFilesInHSplit(const QStringList &files) noexcept
         << "Lektra::OpenFilesInHSplit(): Opening files in horizontal split:"
         << files.size();
 #endif
+    QStringList qfiles;
+
     if (files.isEmpty())
-        return;
+    {
+        qfiles = QFileDialog::getOpenFileNames(this, tr("Open Files"),
+                                               QString(), supportedFormats());
+    }
+    else
+    {
+        qfiles = std::move(files);
+    }
 
     // First file always opens in a new tab
-    OpenFileInNewTab(files[0], [this, files](Lektra *)
+    OpenFileInNewTab(qfiles[0], [this, qfiles](Lektra *)
     {
         // Subsequent files split into that tab
-        for (int i = 1; i < files.size(); ++i)
-            OpenFileHSplit(files[i]);
+        for (int i = 1; i < qfiles.size(); ++i)
+            OpenFileHSplit(qfiles[i]);
     });
 }
 
@@ -2661,11 +2679,22 @@ Lektra::OpenFilesInNewTab(const QStringList &files,
                "order, and extra files will have no callback.";
         return;
     }
+    QStringList qfiles;
+
+    if (files.empty())
+    {
+        qfiles = QFileDialog::getOpenFileNames(this, tr("Open Files"),
+                                               QString(), supportedFormats());
+    }
+    else
+    {
+        qfiles = std::move(files);
+    }
 
     bool isFirst = true;
-    for (int i = 0; i < files.size(); ++i)
+    for (int i = 0; i < qfiles.size(); ++i)
     {
-        const QString &file = files.at(i);
+        const QString &file = qfiles.at(i);
         const CallbackFn callback
             = i < callbacks.size() ? callbacks.at(i) : CallbackFn{};
 
@@ -4784,7 +4813,8 @@ Lektra::initCommands() noexcept
             return;
 
         if (model->exportTextHighlights(path))
-            m_message_bar->showMessage(tr("Highlights exported to %1").arg(path), 4.0f);
+            m_message_bar->showMessage(
+                tr("Highlights exported to %1").arg(path), 4.0f);
         else
             m_message_bar->showMessage(tr("Export highlights failed"), 6.0f);
     });

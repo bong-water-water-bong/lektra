@@ -7,6 +7,7 @@
 - Add **Copy Text** to the highlight annotation context menu. Copies the exact highlighted
   text to the clipboard by testing each character's centre against the annotation's quad
   points, using the cached stext page so no extra parsing is needed.
+- Ability to open multiple files using file dialog to open in new tab, vsplit or hsplit.
 
 ### Bug Fixes
 
