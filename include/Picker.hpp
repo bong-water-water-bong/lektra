@@ -130,32 +130,35 @@ class Picker : public QWidget
 public:
     explicit Picker(const Config::Picker &config, QWidget *parent) noexcept;
 
+    using KeyCombs = QList<QKeyCombination>;
+
     struct Keybindings
     {
-        QList<QKeyCombination> moveUp
-            = {Qt::Key_Up, Qt::ControlModifier | Qt::Key_K};
-        QList<QKeyCombination> moveDown
-            = {Qt::Key_Down, Qt::ControlModifier | Qt::Key_J};
-        QList<QKeyCombination> pageUp   = {Qt::Key_PageUp};
-        QList<QKeyCombination> pageDown = {Qt::Key_PageDown};
-        QList<QKeyCombination> sectionPrev{
-            Qt::ControlModifier | Qt::ShiftModifier | Qt::Key_Up,
-            Qt::ControlModifier | Qt::ShiftModifier | Qt::Key_K};
-        QList<QKeyCombination> sectionNext{
-            Qt::ControlModifier | Qt::ShiftModifier | Qt::Key_Down,
-            Qt::ControlModifier | Qt::ShiftModifier | Qt::Key_J};
-        QList<QKeyCombination> accept   = {Qt::Key_Return};
-        QList<QKeyCombination> expand   = {Qt::Key_Tab};
-        QList<QKeyCombination> collapse = {Qt::Key_Tab};
-        QList<QKeyCombination> dismiss  = {Qt::Key_Escape};
+        KeyCombs moveUp   = {Qt::Key_Up, Qt::ControlModifier | Qt::Key_K};
+        KeyCombs moveDown = {Qt::Key_Down, Qt::ControlModifier | Qt::Key_J};
+        KeyCombs pageUp   = {Qt::Key_PageUp};
+        KeyCombs pageDown = {Qt::Key_PageDown};
+        KeyCombs sectionPrev
+            = {Qt::ControlModifier | Qt::ShiftModifier | Qt::Key_Up,
+               Qt::ControlModifier | Qt::ShiftModifier | Qt::Key_K};
+        KeyCombs sectionNext
+            = {Qt::ControlModifier | Qt::ShiftModifier | Qt::Key_Down,
+               Qt::ControlModifier | Qt::ShiftModifier | Qt::Key_J};
+        KeyCombs accept              = {Qt::Key_Return};
+        KeyCombs expand              = {Qt::Key_Tab};
+        KeyCombs collapse            = {Qt::Key_Tab};
+        KeyCombs dismiss             = {Qt::Key_Escape};
+        KeyCombs toggleStructureMode = {Qt::ControlModifier | Qt::Key_Space};
+        KeyCombs historyPrev         = {Qt::ControlModifier | Qt::Key_Up};
+        KeyCombs historyNext         = {Qt::ControlModifier | Qt::Key_Down};
     };
 
     struct Column
     {
         QString header;
-        int role{Qt::DisplayRole};
-        int stretch{1};
-        Qt::Alignment alignment{Qt::AlignLeft | Qt::AlignVCenter};
+        int role                = Qt::DisplayRole;
+        int stretch             = 1;
+        Qt::Alignment alignment = Qt::AlignLeft | Qt::AlignVCenter;
     };
 
     struct Item
@@ -220,10 +223,17 @@ public:
         m_listView->setAlternatingRowColors(enabled);
     }
 
+    inline QVector<QString> history() const noexcept
+    {
+        return m_history;
+    }
+
     virtual QList<Item> collectItems()            = 0;
     virtual void onItemAccepted(const Item &item) = 0;
     virtual void launch() noexcept;
 
+    void historyPrev() noexcept;
+    void historyNext() noexcept;
     void repopulate() noexcept;
     void setStructureMode(StructureMode mode) noexcept;
     void setPrompt(const QString &prompt) noexcept;
@@ -258,6 +268,7 @@ private:
     Item itemAtProxyIndex(const QModelIndex &index) const;
 
 private:
+    QVector<QString> m_history;
     QLabel *m_promptLabel                      = nullptr;
     QFrame *m_frame                            = nullptr;
     QStandardItemModel *m_model                = nullptr;

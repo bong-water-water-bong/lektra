@@ -993,6 +993,10 @@ Lektra::initConfig() noexcept
                     .expand      = get("expand", defaults.expand),
                     .collapse    = get("collapse", defaults.collapse),
                     .dismiss     = get("dismiss", defaults.dismiss),
+                    .toggleStructureMode = get("toggle_structure_mode",
+                                               defaults.toggleStructureMode),
+                    .historyPrev = get("history_prev", defaults.historyPrev),
+                    .historyNext = get("history_next", defaults.historyNext),
                 };
             }
         }

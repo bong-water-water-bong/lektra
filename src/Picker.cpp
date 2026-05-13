@@ -162,7 +162,10 @@ Picker::eventFilter(QObject *watched, QEvent *event)
                 || m_keys.sectionNext.contains(key)
                 || m_keys.sectionPrev.contains(key)
                 || m_keys.accept.contains(key) || m_keys.expand.contains(key)
-                || m_keys.collapse.contains(key))
+                || m_keys.collapse.contains(key)
+                || m_keys.toggleStructureMode.contains(key)
+                || m_keys.historyNext.contains(key)
+                || m_keys.historyPrev.contains(key))
             {
                 keyPressEvent(keyEvent);
                 return true;
@@ -192,6 +195,7 @@ Picker::keyPressEvent(QKeyEvent *event)
             m_listView->setCurrentIndex(next);
         event->accept();
     }
+
     else if (m_keys.pageDown.contains(key))
     {
         QModelIndex idx = current;
@@ -208,6 +212,7 @@ Picker::keyPressEvent(QKeyEvent *event)
             m_listView->setCurrentIndex(idx);
         event->accept();
     }
+
     else if (m_keys.moveUp.contains(key))
     {
         QModelIndex prev = m_listView->indexAbove(current);
@@ -215,6 +220,7 @@ Picker::keyPressEvent(QKeyEvent *event)
             m_listView->setCurrentIndex(prev);
         event->accept();
     }
+
     else if (m_keys.pageUp.contains(key))
     {
         QModelIndex idx = current;
@@ -231,6 +237,7 @@ Picker::keyPressEvent(QKeyEvent *event)
             m_listView->setCurrentIndex(idx);
         event->accept();
     }
+
     else if (m_keys.sectionNext.contains(key))
     {
         QModelIndex idx = m_listView->indexBelow(current);
@@ -240,6 +247,7 @@ Picker::keyPressEvent(QKeyEvent *event)
             m_listView->setCurrentIndex(idx);
         event->accept();
     }
+
     else if (m_keys.sectionPrev.contains(key))
     {
         QModelIndex idx = m_listView->indexAbove(current);
@@ -249,12 +257,14 @@ Picker::keyPressEvent(QKeyEvent *event)
             m_listView->setCurrentIndex(idx);
         event->accept();
     }
+
     else if (m_keys.accept.contains(key))
     {
         if (m_listView->currentIndex().isValid())
             onItemActivated(m_listView->currentIndex());
         event->accept();
     }
+
     else if (m_keys.expand.contains(key) || m_keys.collapse.contains(key))
     {
         const QModelIndex index = m_listView->currentIndex();
@@ -274,6 +284,27 @@ Picker::keyPressEvent(QKeyEvent *event)
 
         event->accept();
     }
+
+    else if (m_keys.toggleStructureMode.contains(key))
+    {
+        setStructureMode(m_structureMode == StructureMode::Flat
+                             ? StructureMode::Hierarchical
+                             : StructureMode::Flat);
+        event->accept();
+    }
+
+    else if (m_keys.historyPrev.contains(key))
+    {
+        historyPrev();
+        event->accept();
+    }
+
+    else if (m_keys.historyNext.contains(key))
+    {
+        historyNext();
+        event->accept();
+    }
+
     else
     {
         QWidget::keyPressEvent(event);
@@ -444,5 +475,41 @@ Picker::setPrompt(const QString &prompt) noexcept
     {
         m_promptLabel->setText(prompt);
         m_promptLabel->show();
+    }
+}
+
+void
+Picker::historyPrev() noexcept
+{
+    if (m_history.isEmpty())
+        return;
+
+    const QString current = m_searchBox->text();
+    if (!current.isEmpty()
+        && (m_history.isEmpty() || m_history.last() != current))
+        m_history.append(current);
+
+    if (m_history.size() > 1)
+    {
+        m_history.removeLast();
+        m_searchBox->setText(m_history.last());
+    }
+}
+
+void
+Picker::historyNext() noexcept
+{
+    if (m_history.isEmpty())
+        return;
+
+    const QString current = m_searchBox->text();
+    if (!current.isEmpty()
+        && (m_history.isEmpty() || m_history.last() != current))
+        m_history.append(current);
+
+    if (m_history.size() > 1)
+    {
+        m_history.removeLast();
+        m_searchBox->setText(m_history.last());
     }
 }
