@@ -8,11 +8,24 @@
 \usepackage{setspace}
 \usepackage{xcolor}
 \usepackage[most]{tcolorbox}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{minted}
 
 \onehalfspacing
 
-\newfontfamily\majormono{Major Mono Display}
-\setmainfont{Outfit}
+% For the specific font family
+\newfontfamily\majormono{Major Mono Display}[
+    Path = ./fonts/,
+    Extension = .ttf
+]
+
+\setmainfont[
+    Path = ./fonts/,
+    Extension = .ttf,
+    UprightFont = *-Regular,
+    BoldFont = *-Bold,
+]{Outfit}
 
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{0.5em}
@@ -58,36 +71,55 @@ High-performance Document and Image viewer that prioritizes screen space and con
 \section*{Important Links}
 
 \begin{description}[labelwidth=2.2cm, labelsep=0.8em, align=right, leftmargin=0pt]
-    \item[\textbf{Homepage}] \url{https://dheerajshenoy.github.io/lektra}
-    \item[\textbf{Code}]   \url{https://codeberg.org/lektra/lektra}
+    \item[\textbf{Homepage}]       \url{https://dheerajshenoy.github.io/lektra}
+    \item[\textbf{Configuration}]  \url{https://dheerajshenoy.github.io/lektra/configuration.html}
+    \item[\textbf{Commands}]       \url{https://dheerajshenoy.github.io/lektra/commands.html}
+    \item[\textbf{Code}]           \url{https://codeberg.org/lektra/lektra}
 \end{description}
 
 \begin{ghnote}
-    \textbf{Note:} This guide assumes you have installed the \textbf{lektra} and have not changed the default keybindings.
+    \textbf{Note:} This guide assumes you have installed \textbf{LEKTRA} and have not changed the default keybindings.
 \end{ghnote}
 
+\tableofcontents
+\newpage
+
+% ---------------------------------------------------------------------------
 \section{Getting Started}
-This guide will help you get started with using \textbf{lektra}.
+% ---------------------------------------------------------------------------
 
 \subsection{Opening a file}
-You can open a PDF in multiple ways:
+You can open a document in multiple ways:
 
 \begin{itemize}[leftmargin=*]
-    \item \textbf{Command line:} \keys{lektra <path-to-pdf>}
-    \item \textbf{File explorer:} Right-click a PDF and choose \textit{Open with lektra}
+    \item \textbf{Command line:} \keys{lektra <path-to-file>}
+    \item \textbf{File explorer:} Right-click a file and choose \textit{Open with lektra}
+    \item \textbf{From within lektra:} Press \keys{o} to open the file picker
 \end{itemize}
 
-These are not the only ways to open files, but they are the most common.
+Supported formats include PDF, EPUB, XPS, CBZ, and common image formats. DjVu support is detected at runtime if \texttt{djvulibre} is installed.
+
+\subsection{Tabs and Splits}
+
+LEKTRA supports tabs and splits for viewing multiple documents simultaneously.
+
+\begin{itemize}[leftmargin=*]
+    \item \keys{Ctrl+t} opens a new tab
+    \item \keys{Ctrl+w} closes the current tab
+    \item \keys{gt} / \keys{gT} cycles to the next / previous tab
+    \item \keys{Ctrl+\textbackslash} splits the view vertically
+    \item \keys{Ctrl+-} splits the view horizontally
+\end{itemize}
 
 \subsection{Keyboard Navigation and Keybindings}
 
-The core philosophy of \textbf{lektra} is keyboard-driven navigation (but don't worry, mouse support is available too). The default keybindings are very close to the text editor VIM's keybindings. Here are the essential keybindings to get you started:
+The core philosophy of \textbf{LEKTRA} is keyboard-driven navigation (mouse support is available too). Default keybindings follow VIM conventions.
 
 \subsubsection{Scrolling and Movement}
 
 \begin{itemize}[leftmargin=*]
-    \item \textbf{Vertical} \keys{j} scrolls down,\; \keys{k} scrolls up
-    \item \textbf{Horizontal} \keys{h} scrolls left,\; \keys{l} scrolls right
+    \item \textbf{Vertical:} \keys{j} scrolls down,\; \keys{k} scrolls up
+    \item \textbf{Horizontal:} \keys{h} scrolls left,\; \keys{l} scrolls right
 \end{itemize}
 
 \subsubsection{Page Navigation}
@@ -97,10 +129,10 @@ The core philosophy of \textbf{lektra} is keyboard-driven navigation (but don't 
     \item \keys{Shift+k} moves to the previous page
     \item \keys{g,g} jumps to the first page
     \item \keys{Shift+g} jumps to the last page
-    \item \keys{Ctrl+g} goto a specific page (prompts for page number)
+    \item \keys{Ctrl+g} go to a specific page (prompts for page number)
 \end{itemize}
 
-\subsubsection{Search Navigation}
+\subsubsection{Search}
 \begin{itemize}[leftmargin=*]
     \item \keys{/} opens or focuses the search bar
     \item \keys{n} jumps to the next search result
@@ -109,9 +141,7 @@ The core philosophy of \textbf{lektra} is keyboard-driven navigation (but don't 
 
 \subsubsection{Zoom and View Control}
 \begin{itemize}[leftmargin=*]
-    \item \keys{=} zooms in
-    \item \keys{-} zooms out
-    \item \keys{0} resets zoom
+    \item \keys{=} zooms in, \quad \keys{-} zooms out, \quad \keys{0} resets zoom
 \end{itemize}
 
 Fit modes:
@@ -125,7 +155,7 @@ Fit modes:
 \subsubsection{Outline and History}
 \begin{itemize}[leftmargin=*]
     \item \keys{t} opens the document outline (table of contents) overlay
-    \item \keys{Alt+Shift+H} opens the text highlight annotation search overlay
+    \item \keys{Alt+Shift+H} opens the highlight annotation search overlay
     \item \keys{Ctrl+o} goes back to the previous location in history
 \end{itemize}
 
@@ -151,27 +181,143 @@ Fit modes:
 
 \subsubsection{Editing and UI}
 \begin{itemize}[leftmargin=*]
-    \item \keys{u} undo
-    \item \keys{Ctrl+r} redo
+    \item \keys{u} undo, \quad \keys{Ctrl+r} redo
     \item \keys{i} invert colors
     \item \keys{Ctrl+Shift+m} toggle menubar
     \item \keys{:} open command palette
 \end{itemize}
 
 \subsubsection{Rotation}
-
 \begin{itemize}[leftmargin=*]
-    \item \keys{<} rotate counter-clockwise
-    \item \keys{>} rotate clockwise
+    \item \keys{<} rotate counter-clockwise, \quad \keys{>} rotate clockwise
 \end{itemize}
 
+% ---------------------------------------------------------------------------
 \section{Configuration}
+% ---------------------------------------------------------------------------
 
-\textbf{lektra} can be configured using a configuration file located at \keys{\$HOME/.config/lektra/config.toml}. You can change keybindings, appearance settings, and other preferences in this file. For detailed information on configuration options, please refer to \href{https://dheerajshenoy.github.io/lektra/configuration.html}{configuration} page on the lektra's homepage.
+LEKTRA can be configured using \textbf{TOML} or \textbf{Lua}. Let us look at how to configure using TOML first. The configuration file should be at \keys{\$HOME/.config/lektra/config.toml}.
 
+\subsection{Key sections}
+
+\begin{description}[leftmargin=0pt]
+    \item[\texttt{[window]}] Window size, fullscreen, menubar visibility, title format, accent color.
+    \item[\texttt{[page]}] Page foreground and background colors.
+    \item[\texttt{[statusbar]}] Visibility and which fields to display (page number, progress, file info, etc.).
+    \item[\texttt{[split]}] Split behavior — focus follows mouse, dim inactive panes, etc.
+    \item[\texttt{[portal]}] Picture-in-picture portal overlay settings.
+    \item[\texttt{[annotations.*]}] Highlight, rectangle, and popup annotation appearance.
+    \item[\texttt{[thumbnail\_panel]}] Thumbnail strip width, page numbers, and scrollbar visibility.
+    \item[\texttt{[keymap]}] Override any keybinding by specifying \texttt{action = "Key"}.
+    \item[\texttt{[mousemap]}] Mouse button bindings, similar to keymap.
+\end{description}
+
+\subsection{Example snippet}
+
+\begin{tcolorbox}[colback=gray!5, colframe=gray!40, boxrule=0.4pt, arc=4pt,
+    fontupper=\ttfamily\small]
+\begin{minted}{toml}
+[window]
+menubar = false
+accent = "#3daee9FF"
+
+[statusbar]
+visible = true
+show_page_number = true
+show_progress = true
+
+[page]
+bg = "#1e1e2e"
+fg = "#cdd6f4"
+\end{minted}
+\end{tcolorbox}
+
+For the full list of options see the \href{https://dheerajshenoy.github.io/lektra/configuration.html}{configuration reference} on the homepage.
+
+% ---------------------------------------------------------------------------
 \section{Commands}
+% ---------------------------------------------------------------------------
 
-Detailed information of all the available commands can be found on the \href{https://dheerajshenoy.github.io/lektra/commands.html}{commands} page on the lektra's homepage.
+Press \keys{:} to open the command palette and run any command by name. Commands cover opening files, navigation, zoom, annotations, sessions, and more.
+
+The full command reference is on the \href{https://dheerajshenoy.github.io/lektra/commands.html}{commands page} of the homepage.
+
+% ---------------------------------------------------------------------------
+\section{Lua API}
+% ---------------------------------------------------------------------------
+
+LEKTRA embeds a Lua 5.x interpreter (build with \texttt{-DWITH\_LUA=ON}). All APIs live under the global \texttt{lektra} table.
+
+\subsection{Configuration file}
+
+Place your Lua init file at \keys{\$HOME/.config/lektra/init.lua}. It is sourced at startup after the TOML config is applied.
+
+\subsection{Namespaces}
+
+\begin{description}[leftmargin=0pt]
+    \item[\texttt{lektra.view}] Document view helpers — navigation, zoom, rotation, layout, search, text extraction, outline, and per-view event listeners.
+    \item[\texttt{lektra.opt}]  Read/write runtime options (fit mode, layout mode, DPR, statusbar fields, …).
+    \item[\texttt{lektra.cmd}]  Execute any lektra command by name from Lua.
+    \item[\texttt{lektra.keymap}] Bind keys to Lua functions at runtime.
+    \item[\texttt{lektra.mousemap}] Bind mouse buttons to Lua functions.
+    \item[\texttt{lektra.event}] Register global event listeners (document open/close, page change, …).
+    \item[\texttt{lektra.ui}]   Show message bars, input prompts, and pickers from Lua.
+    \item[\texttt{lektra.bookmark}] Programmatic bookmark management.
+    \item[\texttt{lektra.tabs}] Tab management — open, close, focus, list tabs.
+    \item[\texttt{lektra.utils}] Utility helpers (shell execute, clipboard, path helpers).
+\end{description}
+
+\subsection{Quick examples}
+
+\textbf{Bind a key to a Lua function:}
+
+\begin{tcolorbox}[colback=gray!5, colframe=gray!40, boxrule=0.4pt, arc=4pt,
+    fontupper=\ttfamily\small]
+\begin{minted}{lua}
+lektra.keymap.map("n", "<C-e>", function()
+local v = lektra.view.current()
+lektra.ui.message("Page: " .. v:pageno())
+end)
+\end{minted}
+\end{tcolorbox}
+
+\textbf{React to a page change event:}
+
+\begin{tcolorbox}[colback=gray!5, colframe=gray!40, boxrule=0.4pt, arc=4pt,
+    fontupper=\ttfamily\small]
+\begin{minted}{lua}
+local v = lektra.view.current()
+v:register("page_changed", function()
+print("Now on page", v:pageno())
+end)
+\end{minted}
+\end{tcolorbox}
+
+\textbf{Open a file in a new tab:}
+
+\begin{tcolorbox}[colback=gray!5, colframe=gray!40, boxrule=0.4pt, arc=4pt,
+    fontupper=\ttfamily\small]
+\begin{minted}{lua}
+lektra.tabs.open("/path/to/document.pdf")
+\end{minted}
+\end{tcolorbox}
+
+\subsection{Type stubs}
+
+LSP-friendly type stubs for the Lua API are installed at
+\keys{\$prefix/share/lektra/lua/} (Linux/macOS). Point your Lua language server at this directory for autocompletion.
+
+\begin{tcolorbox}[colback=gray!5, colframe=gray!40, boxrule=0.4pt, arc=4pt,
+    fontupper=\ttfamily\small]
+\begin{minted}{json}
+// .luarc.json example
+{
+    "workspace.library": ["/usr/share/lektra/lua"]
+}
+\end{minted}
+\end{tcolorbox}
+
+% For the complete API reference with all methods, types, and event names, see the \href{https://dheerajshenoy.github.io/lektra/lua-api.html}{Lua API} page on the homepage.
 
 \end{document}
 
