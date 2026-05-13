@@ -11,6 +11,10 @@
 
 ### Bug Fixes
 
+- Fix pickers (command palette, outline, bookmarks, etc.) leaking key events and shortcuts
+  to the focused `DocumentView` while open. Pickers now grab the keyboard on launch and
+  install an application-level event filter to swallow `QShortcutEvent`s, both of which
+  are released on dismiss or item acceptance.
 - Fix `InputDialog` ok and cancel buttons looking flat and weird.
 - Render highlight annotations spanning multiple lines correctly by splitting the annotation quad into separate quads
   for each line. Previously, single rectangular quad spanning the multi-line highlight was rendered.

@@ -4,6 +4,7 @@
 #include <QGraphicsDropShadowEffect>
 #include <QHeaderView>
 #include <QKeyEvent>
+#include <QShortcutEvent>
 #include <QStandardItem>
 #include <QVBoxLayout>
 
@@ -99,6 +100,15 @@ Picker::launch() noexcept
     raise();
     m_listView->setCurrentIndex(m_proxy->index(0, 0));
     m_searchBox->setFocus();
+    grabKeyboard();
+    QApplication::instance()->installEventFilter(this);
+}
+
+void
+Picker::releaseInputGrab() noexcept
+{
+    releaseKeyboard();
+    QApplication::instance()->removeEventFilter(this);
 }
 
 void
@@ -127,6 +137,10 @@ Picker::eventFilter(QObject *watched, QEvent *event)
         return false;
     }
 
+    // Block all shortcuts from reaching the rest of the app while visible.
+    if (isVisible() && event->type() == QEvent::Shortcut)
+        return true;
+
     if (watched == m_searchBox)
     {
         if (event->type() == QEvent::KeyRelease)
@@ -134,6 +148,7 @@ Picker::eventFilter(QObject *watched, QEvent *event)
             auto *keyEvent = static_cast<QKeyEvent *>(event);
             if (m_keys.dismiss.contains(keyEvent->keyCombination()))
             {
+                releaseInputGrab();
                 hide();
                 if (parentWidget())
                     parentWidget()->setFocus();
@@ -291,6 +306,7 @@ Picker::onItemActivated(const QModelIndex &index)
 {
     auto item = itemAtProxyIndex(index);
 
+    releaseInputGrab();
     emit itemSelected(item);
     onItemAccepted(item);
     hide();

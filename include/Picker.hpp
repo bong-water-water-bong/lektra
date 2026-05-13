@@ -227,6 +227,7 @@ public:
     void repopulate() noexcept;
     void setStructureMode(StructureMode mode) noexcept;
     void setPrompt(const QString &prompt) noexcept;
+    void releaseInputGrab() noexcept;
 
 signals:
     void itemSelected(const Item &item);
