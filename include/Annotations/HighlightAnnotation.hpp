@@ -4,6 +4,8 @@
 #include "CommentPopupButton.hpp"
 #include "Config.hpp"
 
+#include <vector>
+
 #include <QAction>
 #include <QGraphicsItem>
 #include <QGraphicsSceneContextMenuEvent>
@@ -21,9 +23,10 @@ public:
     HighlightAnnotation(const Config::Annotations::Highlight &config,
                         const QRectF &rect, int index,
                         const QString &comment = {},
+                        const std::vector<QRectF> &rects = {},
                         QGraphicsItem *parent  = nullptr)
         : Annotation(index, QColor(Qt::transparent), parent), m_rect(rect),
-          m_config(config)
+          m_rects(rects), m_config(config)
     {
         m_comment = comment;
         setGlowEnabled(m_config.hover_glow);
@@ -42,8 +45,6 @@ public:
 
     QRectF boundingRect() const override
     {
-        // Must extend outward enough to contain the full outer glow stroke
-        // plus a 2px antialiasing cushion.
         const qreal margin = m_glow_width + 2.0;
         return m_rect.adjusted(-margin, -margin, margin, margin);
     }
@@ -53,20 +54,25 @@ public:
     {
         Q_UNUSED(widget);
 
-        // Outer glow — drawn first, underneath everything.
+        auto paintRects = [&](auto fn) {
+            if (m_rects.empty())
+                fn(m_rect);
+            else
+                for (const QRectF &r : m_rects)
+                    fn(r);
+        };
+
         if (m_hovered && isGlowEnabled())
         {
             painter->save();
-            drawGlow(painter, m_rect, m_glow_width);
+            paintRects([&](const QRectF &r) { drawGlow(painter, r, m_glow_width); });
             painter->restore();
         }
 
-        // Filled highlight rectangle.
         painter->setPen(m_pen);
         painter->setBrush(m_brush);
-        painter->drawRect(m_rect);
+        paintRects([&](const QRectF &r) { painter->drawRect(r); });
 
-        // Selection indicator.
         if (option->state & QStyle::State_Selected)
         {
             painter->save();
@@ -75,7 +81,7 @@ public:
             selPen.setCosmetic(true);
             painter->setPen(selPen);
             painter->setBrush(Qt::NoBrush);
-            painter->drawRect(m_rect);
+            paintRects([&](const QRectF &r) { painter->drawRect(r); });
             painter->restore();
         }
     }
@@ -95,10 +101,13 @@ protected:
     {
         QMenu menu;
 
+        QAction *copyTextAction    = menu.addAction(tr("Copy Text"));
         QAction *deleteAction      = menu.addAction(tr("Delete"));
         QAction *changeColorAction = menu.addAction(tr("Change Color"));
         QAction *commentAction     = menu.addAction(tr("Comment"));
 
+        connect(copyTextAction, &QAction::triggered, this,
+                [this] { emit annotCopyTextRequested(); });
         connect(deleteAction, &QAction::triggered, this,
                 [this] { emit annotDeleteRequested(); });
         connect(changeColorAction, &QAction::triggered, this,
@@ -133,5 +142,6 @@ protected:
 
 private:
     QRectF m_rect;
+    std::vector<QRectF> m_rects;
     const Config::Annotations::Highlight &m_config;
 };

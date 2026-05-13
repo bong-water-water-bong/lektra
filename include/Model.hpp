@@ -135,6 +135,7 @@ public:
     struct RenderAnnotation
     {
         QRectF rect;
+        std::vector<QRectF> rects; // per-line rects for highlight annotations
         enum pdf_annot_type type;
         QColor color;
         QString text;
@@ -480,6 +481,7 @@ public:
                          const QString &comment) noexcept;
     QString getAnnotComment(const int pageno, const int objNum) noexcept;
     QColor getAnnotColor(const int pageno, const int index) noexcept;
+    QString getHighlightText(const int pageno, const int objNum) noexcept;
     int get_obj_num_at_rect(int pageno, fz_rect targetRect) noexcept;
     QString fileTypeToString() const noexcept;
 
@@ -513,6 +515,7 @@ private:
     struct CachedAnnotation
     {
         fz_rect rect; // for non-highlight annotations
+        std::vector<fz_rect> quad_rects; // per-line rects for highlight annotations
         enum pdf_annot_type type;
         QColor color;
         QString text;

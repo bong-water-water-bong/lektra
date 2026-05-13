@@ -128,6 +128,7 @@ signals:
     void annotColorChangeRequested();
     void annotSelectRequested();
     void annotCommentRequested();
+    void annotCopyTextRequested();
 
 protected:
     void hoverEnterEvent(QGraphicsSceneHoverEvent *event) override;

@@ -1,5 +1,18 @@
 # LEKTRA CHANGELOG
 
+## 0.7.3
+
+### Features
+
+- Add **Copy Text** to the highlight annotation context menu. Copies the exact highlighted
+  text to the clipboard by testing each character's centre against the annotation's quad
+  points, using the cached stext page so no extra parsing is needed.
+
+### Bug Fixes
+
+- Render highlight annotations spanning multiple lines correctly by splitting the annotation quad into separate quads
+  for each line. Previously, single rectangular quad spanning the multi-line highlight was rendered.
+
 ## 0.7.2
 
 ### Features

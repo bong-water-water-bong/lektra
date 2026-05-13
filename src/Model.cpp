@@ -631,6 +631,56 @@ highlight_selection(fz_stext_page *stext_page, fz_point a, fz_point b,
     return count;
 }
 
+// Returns true if point p is inside the (possibly rotated) quad q.
+// Uses a 2-D cross-product test on the four edges.
+static bool
+point_in_quad(fz_point p, fz_quad q)
+{
+    auto side = [](fz_point a, fz_point b, fz_point pt) {
+        return (b.x - a.x) * (pt.y - a.y) - (b.y - a.y) * (pt.x - a.x);
+    };
+    return side(q.ul, q.ur, p) >= 0 && side(q.ur, q.lr, p) >= 0
+        && side(q.lr, q.ll, p) >= 0 && side(q.ll, q.ul, p) >= 0;
+}
+
+// Extract the text of all stext chars whose centres lie inside any of `quads`.
+static QString
+text_from_quads(fz_stext_page *stext_page,
+                const std::vector<fz_quad> &quads)
+{
+    QString result;
+    for (fz_stext_block *block = stext_page->first_block; block;
+         block                 = block->next)
+    {
+        if (block->type != FZ_STEXT_BLOCK_TEXT)
+            continue;
+        for (fz_stext_line *line = block->u.t.first_line; line;
+             line                = line->next)
+        {
+            bool line_had_match = false;
+            for (fz_stext_char *ch = line->first_char; ch; ch = ch->next)
+            {
+                fz_point centre{(ch->quad.ul.x + ch->quad.lr.x) * 0.5f,
+                                (ch->quad.ul.y + ch->quad.lr.y) * 0.5f};
+                for (const fz_quad &q : quads)
+                {
+                    if (point_in_quad(centre, q))
+                    {
+                        if (!result.isEmpty() && !line_had_match)
+                            result.append(' ');
+                        char buf[8];
+                        int len = fz_runetochar(buf, ch->c);
+                        result.append(QString::fromUtf8(buf, len));
+                        line_had_match = true;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    return result.trimmed();
+}
+
 // ============================================================================
 // Image Tracking Device for Selective Inversion
 // ============================================================================
@@ -1907,11 +1957,21 @@ Model::buildPageCache(int pageno) noexcept
                 {
                     case PDF_ANNOT_POPUP:
                     case PDF_ANNOT_TEXT:
+                        pdf_annot_color(ctx, annot, &n, color);
+                        ca.color = QColor::fromRgbF(color[0], color[1],
+                                                    color[2], ca.opacity);
+                        break;
+
                     case PDF_ANNOT_HIGHLIGHT:
                     {
                         pdf_annot_color(ctx, annot, &n, color);
                         ca.color = QColor::fromRgbF(color[0], color[1],
                                                     color[2], ca.opacity);
+                        const int qc = pdf_annot_quad_point_count(ctx, annot);
+                        ca.quad_rects.reserve(qc);
+                        for (int qi = 0; qi < qc; ++qi)
+                            ca.quad_rects.push_back(
+                                fz_rect_from_quad(pdf_annot_quad_point(ctx, annot, qi)));
                     }
                     break;
 
@@ -3055,6 +3115,13 @@ Model::renderPageWithExtrasAsync(const RenderJob &job) noexcept
             renderAnnot.index = annot.index;
             renderAnnot.color = annot.color;
             renderAnnot.text  = annot.text;
+            for (const fz_rect &qr : annot.quad_rects)
+            {
+                fz_rect tr = fz_transform_rect(qr, transform);
+                renderAnnot.rects.emplace_back(tr.x0 * scale, tr.y0 * scale,
+                                               (tr.x1 - tr.x0) * scale,
+                                               (tr.y1 - tr.y0) * scale);
+            }
             result.annotations.push_back(std::move(renderAnnot));
         }
     }
@@ -4345,6 +4412,52 @@ Model::getAnnotColor(const int pageno, const int objNum) noexcept
     }
 
     return color;
+}
+
+QString
+Model::getHighlightText(const int pageno, const int objNum) noexcept
+{
+    QString result;
+    pdf_page *page = nullptr;
+
+    fz_try(m_ctx)
+    {
+        fz_stext_page *stext_page = get_or_build_stext_page(m_ctx, pageno);
+        if (!stext_page)
+            fz_throw(m_ctx, FZ_ERROR_GENERIC, "Failed to get stext page");
+
+        page = pdf_load_page(m_ctx, m_pdf_doc, pageno);
+        if (!page)
+            fz_throw(m_ctx, FZ_ERROR_GENERIC, "Failed to load page");
+
+        for (pdf_annot *annot = pdf_first_annot(m_ctx, page); annot;
+             annot            = pdf_next_annot(m_ctx, annot))
+        {
+            if (pdf_to_num(m_ctx, pdf_annot_obj(m_ctx, annot)) != objNum)
+                continue;
+            if (pdf_annot_type(m_ctx, annot) != PDF_ANNOT_HIGHLIGHT)
+                break;
+
+            const int qc = pdf_annot_quad_point_count(m_ctx, annot);
+            std::vector<fz_quad> quads;
+            quads.reserve(qc);
+            for (int i = 0; i < qc; ++i)
+                quads.push_back(pdf_annot_quad_point(m_ctx, annot, i));
+
+            result = text_from_quads(stext_page, quads);
+            break;
+        }
+    }
+    fz_always(m_ctx)
+    {
+        pdf_drop_page(m_ctx, page);
+    }
+    fz_catch(m_ctx)
+    {
+        qWarning() << "getHighlightText failed:" << fz_caught_message(m_ctx);
+    }
+
+    return result;
 }
 
 std::string

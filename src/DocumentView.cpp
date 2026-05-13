@@ -4133,7 +4133,7 @@ DocumentView::renderAnnotations(
             {
                 annot_item = new HighlightAnnotation(
                     m_config.annotations.highlight, annot.rect, annot.index,
-                    annot.text);
+                    annot.text, annot.rects);
             }
             break;
 
@@ -4181,6 +4181,14 @@ DocumentView::renderAnnotations(
 
             m_model->addAnnotComment(pageno, annot_item->index(), newComment);
             setModified(true);
+        });
+
+        connect(annot_item, &Annotation::annotCopyTextRequested, this,
+                [this, annot_item, pageno]()
+        {
+            const QString text = m_model->getHighlightText(pageno, annot_item->index());
+            if (!text.isEmpty())
+                QGuiApplication::clipboard()->setText(text);
         });
 
         connect(annot_item, &Annotation::annotDeleteRequested, this,
