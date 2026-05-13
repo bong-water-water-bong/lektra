@@ -69,6 +69,32 @@ static const luaL_Reg DocumentViewMethods[] = {
                     return 0;
                 }),
 
+    VIEW_METHOD("properties",
+                {
+                    if (auto model = (*view)->model())
+                    {
+                        auto props = model->properties();
+                        lua_newtable(L);
+                        for (const auto &[key, value] : props)
+                        {
+                            std::string keyStr   = key.toUtf8().toStdString();
+                            std::string valueStr = value.toUtf8().toStdString();
+
+                            lua_pushstring(L, keyStr.c_str());
+                            lua_pushstring(L, valueStr.c_str());
+                            lua_settable(L, -3);
+                        }
+
+                        return 1;
+                    }
+                    else
+                    {
+                        lua_pushnil(L);
+                    }
+
+                    return 1;
+                }),
+
     VIEW_METHOD("set_dpr",
                 {
                     if (*view)
@@ -219,6 +245,30 @@ static const luaL_Reg DocumentViewMethods[] = {
                         lua_pushnil(L);
                     return 1;
                 }),
+
+    VIEW_METHOD("model",
+                {
+                    if (*view && (*view)->model())
+                    {
+                        auto **ud = static_cast<Model **>(
+                            lua_newuserdata(L, sizeof(Model *)));
+                        *ud = (*view)->model();
+                        luaL_getmetatable(L, "ModelMetaTable");
+                        lua_setmetatable(L, -2);
+                    }
+                    else
+                    {
+                        lua_pushnil(L);
+                    }
+
+                    return 1;
+                }),
+
+    // auto **ud = static_cast<DocumentView **>(
+    //     lua_newuserdata(L, sizeof(DocumentView *)));
+    // *ud = lektra->currentDocument();
+    // luaL_getmetatable(L, "DocumentViewMetaTable");
+    // lua_setmetatable(L, -2);
 
     VIEW_METHOD("mode",
                 {

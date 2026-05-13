@@ -2240,9 +2240,6 @@ DocumentView::FollowLink(const Model::LinkInfo &info) noexcept
 void
 DocumentView::FileProperties() noexcept
 {
-    if (!m_model->success() || !m_model->supports_metadata())
-        return;
-
     const auto props = m_model->properties();
     if (props.empty())
     {
@@ -4199,7 +4196,8 @@ DocumentView::renderAnnotations(
         connect(annot_item, &Annotation::annotCopyTextRequested, this,
                 [this, annot_item, pageno]()
         {
-            const QString text = m_model->getHighlightText(pageno, annot_item->index());
+            const QString text
+                = m_model->getHighlightText(pageno, annot_item->index());
             if (!text.isEmpty())
                 QGuiApplication::clipboard()->setText(text);
         });
@@ -5106,16 +5104,17 @@ DocumentView::repositionPages()
             // For images rotated 90°/270° the rendered height corresponds to
             // the original page width, so swap the dimension used.
             const auto &pageDimR = m_model->page_dimension_pts(i);
-            const double rot90   = std::fmod(std::abs(m_model->rotation()), 360.0);
-            const bool swapped   = (rot90 == 90.0 || rot90 == 270.0)
-                                   && (m_model->isImage()
-                                       || m_model->fileType()
-                                              == Model::FileType::DJVU);
+            const double rot90
+                = std::fmod(std::abs(m_model->rotation()), 360.0);
+            const bool swapped
+                = (rot90 == 90.0 || rot90 == 270.0)
+                  && (m_model->isImage()
+                      || m_model->fileType() == Model::FileType::DJVU);
             const double heightPts
                 = swapped ? pageDimR.width_pts : pageDimR.height_pts;
-            const double targetPixelHeight
-                = heightPts * m_model->DPR() * m_current_zoom * m_model->DPI()
-                  / 72.0;
+            const double targetPixelHeight = heightPts * m_model->DPR()
+                                             * m_current_zoom * m_model->DPI()
+                                             / 72.0;
 
             const QImage &img = item->image();
             if (img.isNull() || img.height() == 0 || img.width() == 0)

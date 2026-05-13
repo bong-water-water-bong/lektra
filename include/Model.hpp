@@ -38,6 +38,7 @@ class Model : public QObject
     Q_OBJECT
 public:
     using Properties = std::vector<std::pair<QString, QString>>;
+    using FileSize   = uint64_t;
 
     Model(const Config &config, QObject *parent = nullptr) noexcept;
     ~Model() noexcept;
@@ -52,7 +53,7 @@ public:
         EPUB,
         FB2,
         MOBI,
-// Images
+        // Images
         JPG,
         PNG,
         SVG,
@@ -206,11 +207,6 @@ public:
         return m_filetype == FileType::PDF || m_filetype == FileType::EPUB
                || m_filetype == FileType::XPS || m_filetype == FileType::FB2
                || m_filetype == FileType::DJVU || m_filetype == FileType::MOBI;
-    }
-
-    inline bool supports_metadata() const noexcept
-    {
-        return supports_outline();
     }
 
     inline bool supports_annotations() const noexcept
@@ -515,7 +511,8 @@ private:
     struct CachedAnnotation
     {
         fz_rect rect; // for non-highlight annotations
-        std::vector<fz_rect> quad_rects; // per-line rects for highlight annotations
+        std::vector<fz_rect>
+            quad_rects; // per-line rects for highlight annotations
         enum pdf_annot_type type;
         QColor color;
         QString text;
@@ -667,6 +664,8 @@ private:
     FileType getFileType(const QString &filepath) noexcept;
     bool reloadDocument() noexcept;
     void waitForPendingRenders() noexcept;
+    FileSize computeFileSize() noexcept;
+    QString fileSizeToString() const noexcept;
     QUndoStack *m_undo_stack = nullptr;
     // std::optional<std::wstring>
     // get_paper_name_at_position(const int pageno, const fz_point) noexcept;
@@ -692,6 +691,7 @@ private:
     bool m_link_show_boundary             = false;
     bool m_detect_url_links               = false;
     FileType m_filetype                   = FileType::NONE;
+    FileSize m_filesize                   = 0;
 
     mutable std::mutex m_doc_mutex;
     QFuture<void> m_search_future;
@@ -740,7 +740,10 @@ private:
     bool m_is_animated = false;
     QMovie *m_movie    = nullptr;
 
-    QMovie *movie() noexcept { return m_movie; }
+    QMovie *movie() noexcept
+    {
+        return m_movie;
+    }
 
     const Config &m_config;
 };

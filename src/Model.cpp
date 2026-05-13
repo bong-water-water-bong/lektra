@@ -636,17 +636,17 @@ highlight_selection(fz_stext_page *stext_page, fz_point a, fz_point b,
 static bool
 point_in_quad(fz_point p, fz_quad q)
 {
-    auto side = [](fz_point a, fz_point b, fz_point pt) {
+    auto side = [](fz_point a, fz_point b, fz_point pt)
+    {
         return (b.x - a.x) * (pt.y - a.y) - (b.y - a.y) * (pt.x - a.x);
     };
     return side(q.ul, q.ur, p) >= 0 && side(q.ur, q.lr, p) >= 0
-        && side(q.lr, q.ll, p) >= 0 && side(q.ll, q.ul, p) >= 0;
+           && side(q.lr, q.ll, p) >= 0 && side(q.ll, q.ul, p) >= 0;
 }
 
 // Extract the text of all stext chars whose centres lie inside any of `quads`.
 static QString
-text_from_quads(fz_stext_page *stext_page,
-                const std::vector<fz_quad> &quads)
+text_from_quads(fz_stext_page *stext_page, const std::vector<fz_quad> &quads)
 {
     QString result;
     for (fz_stext_block *block = stext_page->first_block; block;
@@ -1256,6 +1256,7 @@ Model::openAsync(const QString &filePath) noexcept
     // thread and cloning the context.
     m_filetype = getFileType(canonPath);
     m_is_image = isImageFormat(m_filetype);
+    m_filesize = computeFileSize();
 
     if (m_filetype == FileType::NONE)
     {
@@ -1764,9 +1765,9 @@ Model::buildPageCache_djvu(int pageno) noexcept
     // Read pre-rotation dimensions first so the cache stores them consistently
     // with the MuPDF path (pre-rotation). Post-rotation values are used only
     // for the render buffer below.
-    const int native_dpi  = djvu.page_dpi(page);
-    const int orig_pw_px  = djvu.page_width(page);
-    const int orig_ph_px  = djvu.page_height(page);
+    const int native_dpi = djvu.page_dpi(page);
+    const int orig_pw_px = djvu.page_width(page);
+    const int orig_ph_px = djvu.page_height(page);
 
     const float w_pts = static_cast<float>(orig_pw_px) / native_dpi * 72.0f;
     const float h_pts = static_cast<float>(orig_ph_px) / native_dpi * 72.0f;
@@ -1970,13 +1971,13 @@ Model::buildPageCache(int pageno) noexcept
                     case PDF_ANNOT_HIGHLIGHT:
                     {
                         pdf_annot_color(ctx, annot, &n, color);
-                        ca.color = QColor::fromRgbF(color[0], color[1],
-                                                    color[2], ca.opacity);
+                        ca.color     = QColor::fromRgbF(color[0], color[1],
+                                                        color[2], ca.opacity);
                         const int qc = pdf_annot_quad_point_count(ctx, annot);
                         ca.quad_rects.reserve(qc);
                         for (int qi = 0; qi < qc; ++qi)
-                            ca.quad_rects.push_back(
-                                fz_rect_from_quad(pdf_annot_quad_point(ctx, annot, qi)));
+                            ca.quad_rects.push_back(fz_rect_from_quad(
+                                pdf_annot_quad_point(ctx, annot, qi)));
                     }
                     break;
 
@@ -2428,14 +2429,16 @@ Model::get_selected_text(int pageno, QPointF start, QPointF end,
 Model::Properties
 Model::properties() noexcept
 {
+    Properties props;
+    props.push_back(qMakePair("Path", m_filepath));
+    props.push_back(qMakePair("Type", fileTypeToString()));
+    props.push_back(qMakePair("Size", fileSizeToString()));
+
     if (m_filetype == FileType::DJVU)
     {
         auto &djvu = DjVuLib::get();
         if (!djvu.ok || !m_ddjvu_ctx || !m_ddjvu_doc)
-            return {};
-
-        Properties djvu_props;
-        djvu_props.reserve(5); // typical number of metadata entries
+            return props;
 
         /* Fetch document-wide annotations.
            compat=1 also searches the shared annotation chunk
@@ -2447,7 +2450,7 @@ Model::properties() noexcept
         if (anno == DJVU_MINIEXP_NIL || anno == djvu.mexp_symbol("failed")
             || anno == djvu.mexp_symbol("stopped"))
         {
-            return djvu_props;
+            return props;
         }
 
         /* Key/value metadata pairs */
@@ -2459,7 +2462,7 @@ Model::properties() noexcept
                 const char *key = djvu.mexp_to_name(keys[i]);
                 const char *val = djvu.anno_meta(anno, keys[i]);
                 if (key && val)
-                    djvu_props.emplace_back(key, val);
+                    props.emplace_back(key, val);
             }
             free(keys);
         }
@@ -2467,25 +2470,35 @@ Model::properties() noexcept
         /* XMP metadata blob (if present) */
         const char *xmp = djvu.anno_xmp(anno);
         if (xmp)
-            djvu_props.emplace_back("XMP", xmp);
+            props.emplace_back("XMP", xmp);
 
         djvu.mexp_release(m_ddjvu_doc, anno);
-        return djvu_props;
     }
 
-    if (!m_ctx || !m_doc)
-        return {};
+    else if (m_is_image)
+    {
+        QImageReader reader(m_filepath);
+        props.emplace_back("Width", QString::number(reader.size().width()));
+        props.emplace_back("Height", QString::number(reader.size().height()));
+        props.emplace_back("Format", reader.format().constData());
+        props.emplace_back("Animated",
+                           reader.supportsAnimation() ? "Yes" : "No");
+        props.emplace_back("Animated",
+                           reader.supportsAnimation() ? "Yes" : "No");
+    }
 
-    Properties props;
-    props.reserve(16); // Typical number of PDF properties
+    else
+    {
+        if (!m_ctx || !m_doc)
+            return props;
 
-    props.push_back(qMakePair("File Path", m_filepath));
-    props.push_back(
-        qMakePair("Encrypted", fz_needs_password(m_ctx, m_doc) ? "Yes" : "No"));
-    props.push_back(qMakePair("Page Count", QString::number(m_page_count)));
+        props.push_back(qMakePair(
+            "Encrypted", fz_needs_password(m_ctx, m_doc) ? "Yes" : "No"));
+        props.push_back(qMakePair("Page Count", QString::number(m_page_count)));
 
-    if (m_pdf_doc)
-        populatePDFProperties(props);
+        if (m_pdf_doc)
+            populatePDFProperties(props);
+    }
 
     return props;
 }
@@ -2669,8 +2682,8 @@ Model::requestImageRender(bool highQuality) noexcept
     QTransform rotationTransform;
     rotationTransform.rotate(m_rotation);
 
-    // Calculate the size the image would be if it were scaled at 100% zoom but
-    // rotated
+    // Calculate the size the image would be if it were scaled at 100% zoom
+    // but rotated
     QRectF rotatedRect
         = rotationTransform.mapRect(QRectF(m_image_cache.rect()));
     const double rotatedWidth  = rotatedRect.width();
@@ -2717,8 +2730,8 @@ Model::requestImageRender(bool highQuality) noexcept
     finalTransform.rotate(m_rotation);
 
     // Calculate the actual scale needed to reach our capped rw/rh from the
-    // original source We scale the original cache pixels to fit the calculated
-    // bounding box
+    // original source We scale the original cache pixels to fit the
+    // calculated bounding box
     QImage result = m_image_cache.transformed(finalTransform, mode)
                         .scaled(rw, rh, Qt::IgnoreAspectRatio, mode);
 
@@ -5212,4 +5225,27 @@ Model::getTextInPage(const int pageno, bool formatted) noexcept
         clean_pdf_text(result);
 
     return result;
+}
+
+Model::FileSize
+Model::computeFileSize() noexcept
+{
+    QFileInfo fileInfo(m_filepath);
+    return fileInfo.size();
+}
+
+QString
+Model::fileSizeToString() const noexcept
+{
+    static const char *units[] = {"B", "KB", "MB", "GB", "TB"};
+    int unitIndex              = 0;
+    double displaySize         = static_cast<double>(m_filesize);
+
+    while (displaySize >= 1024 && unitIndex < 4)
+    {
+        displaySize /= 1024;
+        ++unitIndex;
+    }
+
+    return QString::number(displaySize, 'f', 2) + " " + units[unitIndex];
 }
