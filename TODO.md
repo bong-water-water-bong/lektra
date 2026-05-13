@@ -6,14 +6,12 @@
 
 - [ ] Jump marker zoom doesn't affect location when reshowing
 - [ ] Allow for command arguments
-- [ ] Allow opening multiple files from the file dialog
 - [ ] Tab detach drag and drop to new window spawns new useless window
 - [ ] Don't hide scrollbars when search hits have been drawn
 - [ ] Show visually, and identifier for split files (if they remain as original file) next to their name. Maybe,
       a numbered gutter badge, small [1], [2] badge in the corner of each split — same number means same file.
       Simple and non-intrusive.
 - [ ] Mult-click drag select word, line, paragraph, etc. based on number of clicks before dragging
-- [ ] History for pickers
 - [ ] Don't add connection to annotation when in non-annotatable mode
 
 ## MEDIUM PRIORITY
@@ -38,11 +36,7 @@
 - [ ] Reference previewer
 - [ ] Peek equation dependencies
 - [ ] Search inside math equations
-- [ ] Convert to notes
-- [ ] read from stdin
-- [ ] Suspend unused tabs when inactive for a given time
 - [ ] Separate dark and light mode colors ability
-- [ ] Search engine configuration
 - [ ] Smart jump under cursor (eg. jump to citation if on citation)
 - [ ] Narrow to region
 - [ ] Ruler
