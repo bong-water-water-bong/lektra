@@ -1477,7 +1477,8 @@ Lektra::updateUiEnabledState() noexcept
     }
 
     // --- Visibility Logic ---
-    // Rule: Most advanced tools are hidden if it's an image or no file is open
+    // Rule: Most advanced tools are hidden if it's an image or no file is
+    // open
     const bool showAdvancedTools = hasFile && !isImageDoc;
 
     auto setAdvancedVisible = [&](auto *widget)
@@ -1612,9 +1613,9 @@ Lektra::setupKeybinding(const QString &action, const QStringList &keys) noexcept
 
     m_config.keybinds.remove(action);
 
-    // Fetch all shortcuts once — re-fetching inside the keys loop would do a
-    // full child-tree traversal per key. We remove deleted entries in-place so
-    // future key iterations never touch a dangling pointer.
+    // Fetch all shortcuts once — re-fetching inside the keys loop would do
+    // a full child-tree traversal per key. We remove deleted entries
+    // in-place so future key iterations never touch a dangling pointer.
     auto allShortcuts = findChildren<QShortcut *>();
     for (const QString &key : keys)
     {
@@ -3430,10 +3431,10 @@ Lektra::handleCurrentTabChanged(int index) noexcept
         dispatchLuaEvent(DispatchType::OnTabChanged);
 #endif
 
-    // Lazy load materialization: if the tab has the "lazy" role, it means it's
-    // a placeholder for a file that hasn't been loaded yet. We need to load the
-    // file, create a DocumentView for it, and replace the placeholder widget
-    // with the new view.
+    // Lazy load materialization: if the tab has the "lazy" role, it means
+    // it's a placeholder for a file that hasn't been loaded yet. We need to
+    // load the file, create a DocumentView for it, and replace the
+    // placeholder widget with the new view.
     if (w && w->property("tabRole").toString() == "lazy")
     {
         const QString filePath = w->property("filePath").toString();
@@ -6617,8 +6618,8 @@ Lektra::startIPCServer(const QString &name)
 }
 
 // Add this helper before Read_args_parser
-// TODO: Don't do this hacky stuff, refactor the argument parsing logic to be
-// more flexible and not require this
+// TODO: Don't do this hacky stuff, refactor the argument parsing logic to
+// be more flexible and not require this
 bool
 Lektra::readSingleInstanceFromConfig() noexcept
 {
