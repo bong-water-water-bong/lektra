@@ -11,6 +11,7 @@
 
 ### Bug Fixes
 
+- Fix `InputDialog` ok and cancel buttons looking flat and weird.
 - Render highlight annotations spanning multiple lines correctly by splitting the annotation quad into separate quads
   for each line. Previously, single rectangular quad spanning the multi-line highlight was rendered.
 

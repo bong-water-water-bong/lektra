@@ -1,8 +1,9 @@
 #pragma once
 
+#include <QAbstractButton>
 #include <QDialog>
+#include <QDialogButtonBox>
 #include <QLabel>
-#include <QPushButton>
 #include <QTextEdit>
 #include <QVBoxLayout>
 
@@ -21,19 +22,22 @@ public:
 
         m_commentBox->setMinimumHeight(100);
 
-        QHBoxLayout *btnLayout = new QHBoxLayout();
-        btnLayout->addStretch();
-        QPushButton *okBtn     = new QPushButton(tr("Ok"), this);
-        QPushButton *cancelBtn = new QPushButton(tr("Cancel"), this);
-        btnLayout->addWidget(okBtn);
-        btnLayout->addWidget(cancelBtn);
+        auto *buttons = new QDialogButtonBox(
+            QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+        const QString btnStyle =
+            "QPushButton { border: 1px solid palette(mid); border-radius: 4px;"
+            " padding: 4px 16px; background: palette(button); color: palette(button-text); }"
+            "QPushButton:hover { background: palette(light); }"
+            "QPushButton:pressed { background: palette(dark); }";
+        for (QAbstractButton *btn : buttons->buttons())
+            btn->setStyleSheet(btnStyle);
 
         layout->addWidget(m_infoLabel);
         layout->addWidget(m_commentBox);
-        layout->addLayout(btnLayout);
+        layout->addWidget(buttons);
 
-        connect(okBtn, &QPushButton::clicked, this, &QDialog::accept);
-        connect(cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
+        connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+        connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
     }
 
     static QString getText(const QString &title, const QString &infoText,
