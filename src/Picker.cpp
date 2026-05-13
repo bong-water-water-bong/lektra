@@ -100,14 +100,12 @@ Picker::launch() noexcept
     raise();
     m_listView->setCurrentIndex(m_proxy->index(0, 0));
     m_searchBox->setFocus();
-    grabKeyboard();
     QApplication::instance()->installEventFilter(this);
 }
 
 void
 Picker::releaseInputGrab() noexcept
 {
-    releaseKeyboard();
     QApplication::instance()->removeEventFilter(this);
 }
 
